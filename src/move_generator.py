@@ -37,21 +37,8 @@ class MoveGenerator:
                 pseudo_legal_moves.extend(self._queen_moves(square, piece))
             elif piece_type_val == KING:
                 pseudo_legal_moves.extend(self._king_moves(square, piece))
-        
-        # Lọc ra các nước đi thực sự hợp lệ (không để lại vua trong trạng thái bị chiếu)
-        legal_moves = []
-        for move in pseudo_legal_moves:
-            # Thử thực hiện nước đi
-            self.board.make_move(move, in_search=True)
-            # Kiểm tra xem sau khi thực hiện nước đi, vua có bị chiếu không (đổi lượt rồi nên phải xem vua đối phương)
-            is_legal = not self.board.is_in_check()
-            # Hoàn tác nước đi
-            self.board.unmake_move(move, in_search=True)
-            
-            if is_legal:
-                legal_moves.append(move)
                 
-        return legal_moves
+        return pseudo_legal_moves
 
     def _pawn_moves(self, square, piece):
         """
