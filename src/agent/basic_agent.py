@@ -1,5 +1,5 @@
 import random
-from src.move_generator import MoveGenerator
+from src.core.Board.move_generator import MoveGenerator
 
 class BasicAI:
     """

@@ -318,7 +318,7 @@ class Board:
         """Tính toán trạng thái chiếu"""
         king_square = self.king_square[self.move_colour_index]
         blockers = self.all_pieces_bitboard
-        
+
         # Kiểm tra chiếu từ xe và hậu
         if self.enemy_orthogonal_sliders != 0:
             rook_attacks = get_rook_attacks(king_square, blockers)

@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import messagebox
 from src.core.Board.board import Board
 from src.core.Board.piece import get_symbol, NONE, is_white, piece_type
-from src.move_generator import MoveGenerator
+from src.core.Board.move_generator import MoveGenerator
 
 class ChessGUI:
     def __init__(self, master, board: Board = None):
@@ -47,6 +47,35 @@ class ChessGUI:
         # Info label
         self.info_label = tk.Label(self.right_frame, text="", font=("Arial", 18), anchor="nw", justify="left")
         self.info_label.pack(anchor="nw")
+        
+        # Control buttons
+        control_frame = tk.Frame(self.right_frame)
+        control_frame.pack(anchor="nw", fill=tk.X, pady=10)
+        
+        # Reset button
+        self.reset_button = tk.Button(
+            control_frame, 
+            text="Khởi tạo lại", 
+            command=self.restart_game,
+            font=("Arial", 11), 
+            bg="#f44336", 
+            fg="white", 
+            width=12
+        )
+        self.reset_button.pack(side=tk.LEFT, padx=5, pady=5)
+        
+        # Exit button
+        self.exit_button = tk.Button(
+            control_frame, 
+            text="Thoát", 
+            command=self.exit_to_main_menu,
+            font=("Arial", 11), 
+            bg="#607D8B", 
+            fg="white", 
+            width=12
+        )
+        self.exit_button.pack(side=tk.LEFT, padx=5, pady=5)
+        
         self.update_info()
 
     def update_info(self):
@@ -299,23 +328,6 @@ class ChessGUI:
     def show_winner(self, winner):
         """Hiển thị thông báo người thắng và dừng trò chơi"""
         messagebox.showinfo("Trò chơi kết thúc", f"Người chơi {winner} đã thắng!\nVua đã bị bắt.")
-        
-        # Tạo label thông báo người thắng trên bàn cờ
-        winner_frame = tk.Frame(self.canvas, bg="white", bd=2, relief=tk.RAISED)
-        winner_canvas = self.canvas.create_window(self.square_size*4, self.square_size*4, 
-                                                window=winner_frame, width=self.square_size*6, height=self.square_size*2)
-        
-        winner_label = tk.Label(winner_frame, text=f"NGƯỜI CHƠI {winner.upper()} ĐÃ THẮNG!", 
-                                font=("Arial", self.font_size), bg="white", fg="red")
-        winner_label.pack(pady=20)
-        
-        # Tạo nút chơi lại
-        replay_button = tk.Button(winner_frame, text="Chơi lại", font=("Arial", int(self.font_size*0.7)),
-                                 command=self.restart_game)
-        replay_button.pack(pady=10)
-        
-        # Vô hiệu hóa các thao tác trên bàn cờ
-        self.disable_board()
     
     def disable_board(self):
         """Vô hiệu hóa các thao tác trên bàn cờ"""

@@ -3,9 +3,9 @@ from tkinter import ttk, messagebox, scrolledtext
 import threading
 import time
 from src.core.Board.board import Board
-from src.move_generator import MoveGenerator
-from src.ai.player import ChessAI
-from src.ui.chess_gui import ChessGUI  # Import the existing chess GUI
+from src.core.Board.move_generator import MoveGenerator
+from src.agent.player import ChessAI
+from src.ui.human_vs_human_gui import ChessGUI  # Import the existing chess GUI
 
 class AIVisualizerGUI(ChessGUI):
     """
@@ -68,17 +68,44 @@ class AIVisualizerGUI(ChessGUI):
         
         tk.Label(depth_frame, text="Độ sâu tìm kiếm:", font=("Arial", 11)).pack(side=tk.LEFT, padx=5)
         self.ai_depth_var = tk.IntVar(value=3)
-        depth_spinner = ttk.Spinbox(depth_frame, from_=1, to=5, textvariable=self.ai_depth_var, width=5)
+        depth_spinner = ttk.Spinbox(depth_frame, from_=1, to=10, textvariable=self.ai_depth_var, width=5)
         depth_spinner.pack(side=tk.LEFT, padx=5)
         depth_spinner.bind("<<Increment>>", lambda e: self.on_depth_change())
         depth_spinner.bind("<<Decrement>>", lambda e: self.on_depth_change())
         
+        # Time Limit Selection
+        time_frame = tk.Frame(self.ai_control_frame)
+        time_frame.pack(anchor="w", fill=tk.X, pady=5)
+        
+        tk.Label(time_frame, text="Giới hạn thời gian (giây):", font=("Arial", 11)).pack(side=tk.LEFT, padx=5)
+        self.ai_time_var = tk.IntVar(value=0)  # 0 means no limit
+        time_spinner = ttk.Spinbox(time_frame, from_=0, to=60, textvariable=self.ai_time_var, width=5)
+        time_spinner.pack(side=tk.LEFT, padx=5)
+        time_spinner.bind("<<Increment>>", lambda e: self.on_time_limit_change())
+        time_spinner.bind("<<Decrement>>", lambda e: self.on_time_limit_change())
+        tk.Label(time_frame, text="(0 = không giới hạn)", font=("Arial", 9)).pack(side=tk.LEFT, padx=5)
+        
         # Enable/Disable AI button
+        button_frame = tk.Frame(self.ai_control_frame)
+        button_frame.pack(anchor="w", fill=tk.X, pady=5)
+        
         self.ai_button_var = tk.StringVar(value="Tắt AI")
-        self.ai_button = tk.Button(self.ai_control_frame, textvariable=self.ai_button_var, 
+        self.ai_button = tk.Button(button_frame, textvariable=self.ai_button_var, 
                                    font=("Arial", 11), command=self.toggle_ai, 
                                    bg="#f44336", fg="white", width=10)
-        self.ai_button.pack(anchor="w", pady=5)
+        self.ai_button.pack(side=tk.LEFT, padx=5)
+        
+        # Reset button
+        self.reset_button = tk.Button(button_frame, text="Khởi tạo lại", 
+                                     font=("Arial", 11), command=self.restart_game,
+                                     bg="#FF9800", fg="white", width=10)
+        self.reset_button.pack(side=tk.LEFT, padx=5)
+        
+        # Exit button
+        self.exit_button = tk.Button(button_frame, text="Thoát", 
+                                    font=("Arial", 11), command=self.exit_to_main_menu,
+                                    bg="#607D8B", fg="white", width=10)
+        self.exit_button.pack(side=tk.LEFT, padx=5)
         
         # Thinking visualization frame
         self.thinking_frame = tk.LabelFrame(self.right_frame, text="Quá trình suy nghĩ của AI", font=("Arial", 12, "bold"), padx=10, pady=10)
@@ -169,6 +196,12 @@ class AIVisualizerGUI(ChessGUI):
         self.ai.set_depth(depth)
         self.add_to_thinking_log(f"Độ sâu tìm kiếm đã thay đổi thành {depth}")
     
+    def on_time_limit_change(self, event=None):
+        """Handle change in AI time limit"""
+        time_limit = self.ai_time_var.get()
+        time_limit_str = f"{time_limit} giây" if time_limit > 0 else "không giới hạn"
+        self.add_to_thinking_log(f"Giới hạn thời gian đã thay đổi thành {time_limit_str}")
+    
     def add_to_thinking_log(self, message):
         """Add a message to the thinking log with timestamp"""
         timestamp = time.strftime('%H:%M:%S')
@@ -216,8 +249,12 @@ class AIVisualizerGUI(ChessGUI):
     def ai_think_and_move(self):
         """AI thinking thread function that updates the visualization"""
         # Create a custom AI agent with visualization callbacks
+        time_limit = self.ai_time_var.get()
+        time_limit = None if time_limit == 0 else time_limit
+        
         custom_ai = VisualizationAlphaBetaAgent(
             max_depth=self.ai_depth_var.get(),
+            time_limit=time_limit,
             update_callback=self.update_thinking_visualization
         )
         
@@ -398,13 +435,28 @@ class AIVisualizerGUI(ChessGUI):
         self.highlighted.append((from_row, from_col))
         self.highlighted.append((to_row, to_col))
 
+    def exit_to_main_menu(self):
+        """Thoát về màn hình chính để chọn chế độ chơi khác"""
+        # Dừng luồng AI nếu đang chạy
+        self.ai_enabled = False
+        if self.thinking_thread and self.thinking_thread.is_alive():
+            self.thinking_thread.join(timeout=0.5)
+            
+        # Đóng cửa sổ hiện tại
+        self.master.destroy()
+        
+        # Import thư viện main để tránh circular imports
+        from src.main import main
+        # Khởi động lại màn hình chính
+        main()
+
 class VisualizationAlphaBetaAgent:
     """
     Modified Alpha-Beta agent that provides visualization updates
     """
-    def __init__(self, max_depth=4, update_callback=None):
-        from src.ai.alpha_beta import AlphaBetaAgent
-        self.agent = AlphaBetaAgent(max_depth=max_depth)
+    def __init__(self, max_depth=4, time_limit=None, update_callback=None):
+        from src.agent.alpha_beta import AlphaBetaAgent
+        self.agent = AlphaBetaAgent(max_depth=max_depth, time_limit=time_limit)
         self.update_callback = update_callback
         self.nodes_evaluated = 0
         self.current_best_move = None
@@ -434,7 +486,7 @@ class VisualizationAlphaBetaAgent:
         def choose_move_with_visualization(board):
             """Wrapped choose_move method with visualization updates"""
             # Get all legal moves
-            from src.move_generator import MoveGenerator
+            from src.core.Board.move_generator import MoveGenerator
             move_generator = MoveGenerator(board)
             legal_moves = move_generator.generate_legal_moves()
             

@@ -3,29 +3,29 @@ from tkinter import ttk, messagebox, scrolledtext
 import threading
 import time
 from src.core.Board.board import Board
-from src.move_generator import MoveGenerator
-from src.ai.player import ChessAI
-from src.ai.basic_ai import BasicAI
-from src.ui.chess_gui import ChessGUI
+from src.core.Board.move_generator import MoveGenerator
+from src.agent.player import ChessAI
+from src.agent.basic_agent import BasicAI
+from src.ui.human_vs_human_gui import ChessGUI
 
-class AIvsAIGUI(ChessGUI):
+class AgentvsAgentGUI(ChessGUI):
     """
-    Chess GUI that allows two AI players to play against each other
+    Chess GUI that allows two agent players to play against each other
     """
     def __init__(self, master, board=None):
         # Initialize the base ChessGUI
         super().__init__(master, board)
         
-        # AI Settings
-        self.white_ai = None  # Will be set when user selects AI type
-        self.black_ai = None  # Will be set when user selects AI type
-        self.ai_thinking = False
+        # Agent Settings
+        self.white_agent = None  # Will be set when user selects agent type
+        self.black_agent = None  # Will be set when user selects agent type
+        self.agent_thinking = False
         self.game_running = False
         self.game_speed = 1.0  # Seconds between moves
         self.thinking_thread = None
         self.pause_requested = False
         
-        # Reorganize the main frame to include AI settings
+        # Reorganize the main frame to include agent settings
         self.main_frame.pack_forget()
         
         # Create a new main frame layout
@@ -36,7 +36,7 @@ class AIvsAIGUI(ChessGUI):
         self.left_frame = tk.Frame(self.main_frame)
         self.left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=False, padx=15)
         
-        # Right frame for info and AI controls
+        # Right frame for info and agent controls
         self.right_frame = tk.Frame(self.main_frame, padx=20, pady=20)
         self.right_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
@@ -49,50 +49,50 @@ class AIvsAIGUI(ChessGUI):
         self.info_label = tk.Label(self.right_frame, text="", font=("Arial", 14), anchor="nw", justify="left")
         self.info_label.pack(anchor="nw", fill=tk.X)
         
-        # AI Controls Frame
-        self.ai_control_frame = tk.LabelFrame(self.right_frame, text="Cài đặt AI vs AI", font=("Arial", 12, "bold"), padx=10, pady=10)
-        self.ai_control_frame.pack(anchor="nw", fill=tk.X, pady=10)
+        # Agent Controls Frame
+        self.agent_control_frame = tk.LabelFrame(self.right_frame, text="Cài đặt Agent vs Agent", font=("Arial", 12, "bold"), padx=10, pady=10)
+        self.agent_control_frame.pack(anchor="nw", fill=tk.X, pady=10)
         
-        # White AI Selection
-        white_frame = tk.Frame(self.ai_control_frame)
+        # White Agent Selection
+        white_frame = tk.Frame(self.agent_control_frame)
         white_frame.pack(anchor="w", fill=tk.X, pady=5)
         
-        tk.Label(white_frame, text="AI Trắng:", font=("Arial", 11)).pack(side=tk.LEFT, padx=5)
-        self.white_ai_var = tk.StringVar(value="Alpha-Beta")
-        white_ai_combo = ttk.Combobox(white_frame, textvariable=self.white_ai_var, 
+        tk.Label(white_frame, text="Agent Trắng:", font=("Arial", 11)).pack(side=tk.LEFT, padx=5)
+        self.white_agent_var = tk.StringVar(value="Alpha-Beta")
+        white_agent_combo = ttk.Combobox(white_frame, textvariable=self.white_agent_var, 
                                      values=["Alpha-Beta", "Cơ bản"], width=10, state="readonly")
-        white_ai_combo.pack(side=tk.LEFT, padx=5)
+        white_agent_combo.pack(side=tk.LEFT, padx=5)
         
-        # White AI Depth (only for Alpha-Beta)
+        # White Agent Depth (only for Alpha-Beta)
         self.white_depth_var = tk.IntVar(value=3)
         self.white_depth_frame = tk.Frame(white_frame)
         self.white_depth_frame.pack(side=tk.LEFT, padx=10)
         tk.Label(self.white_depth_frame, text="Độ sâu:", font=("Arial", 11)).pack(side=tk.LEFT)
-        white_depth_spinner = ttk.Spinbox(self.white_depth_frame, from_=1, to=5, 
+        white_depth_spinner = ttk.Spinbox(self.white_depth_frame, from_=1, to=50, 
                                          textvariable=self.white_depth_var, width=5)
         white_depth_spinner.pack(side=tk.LEFT, padx=5)
         
-        # Black AI Selection
-        black_frame = tk.Frame(self.ai_control_frame)
+        # Black Agent Selection
+        black_frame = tk.Frame(self.agent_control_frame)
         black_frame.pack(anchor="w", fill=tk.X, pady=5)
         
-        tk.Label(black_frame, text="AI Đen:", font=("Arial", 11)).pack(side=tk.LEFT, padx=5)
-        self.black_ai_var = tk.StringVar(value="Alpha-Beta")
-        black_ai_combo = ttk.Combobox(black_frame, textvariable=self.black_ai_var, 
+        tk.Label(black_frame, text="Agent Đen:", font=("Arial", 11)).pack(side=tk.LEFT, padx=5)
+        self.black_agent_var = tk.StringVar(value="Alpha-Beta")
+        black_agent_combo = ttk.Combobox(black_frame, textvariable=self.black_agent_var, 
                                      values=["Alpha-Beta", "Cơ bản"], width=10, state="readonly")
-        black_ai_combo.pack(side=tk.LEFT, padx=5)
+        black_agent_combo.pack(side=tk.LEFT, padx=5)
         
-        # Black AI Depth (only for Alpha-Beta)
+        # Black Agent Depth (only for Alpha-Beta)
         self.black_depth_var = tk.IntVar(value=3)
         self.black_depth_frame = tk.Frame(black_frame)
         self.black_depth_frame.pack(side=tk.LEFT, padx=10)
         tk.Label(self.black_depth_frame, text="Độ sâu:", font=("Arial", 11)).pack(side=tk.LEFT)
-        black_depth_spinner = ttk.Spinbox(self.black_depth_frame, from_=1, to=5, 
+        black_depth_spinner = ttk.Spinbox(self.black_depth_frame, from_=1, to=50, 
                                          textvariable=self.black_depth_var, width=5)
         black_depth_spinner.pack(side=tk.LEFT, padx=5)
         
         # Game speed control
-        speed_frame = tk.Frame(self.ai_control_frame)
+        speed_frame = tk.Frame(self.agent_control_frame)
         speed_frame.pack(anchor="w", fill=tk.X, pady=5)
         
         tk.Label(speed_frame, text="Tốc độ (giây/nước):", font=("Arial", 11)).pack(side=tk.LEFT, padx=5)
@@ -102,7 +102,7 @@ class AIvsAIGUI(ChessGUI):
         speed_spinner.pack(side=tk.LEFT, padx=5)
         
         # Button Frame
-        button_frame = tk.Frame(self.ai_control_frame)
+        button_frame = tk.Frame(self.agent_control_frame)
         button_frame.pack(fill=tk.X, pady=10)
         
         # Start/Stop button
@@ -124,6 +124,11 @@ class AIvsAIGUI(ChessGUI):
                                     bg="#2196F3", fg="white", width=12, state=tk.DISABLED)
         self.pause_button.pack(side=tk.LEFT, padx=5)
         
+        # Exit button - New
+        self.exit_button = tk.Button(button_frame, text="Thoát", command=self.exit_to_main_menu,
+                                   font=("Arial", 11), bg="#607D8B", fg="white", width=12)
+        self.exit_button.pack(side=tk.LEFT, padx=5)
+        
         # Game log
         log_frame = tk.LabelFrame(self.right_frame, text="Nhật ký trận đấu", font=("Arial", 12, "bold"), padx=10, pady=10)
         log_frame.pack(anchor="nw", fill=tk.BOTH, expand=True, pady=10)
@@ -132,14 +137,14 @@ class AIvsAIGUI(ChessGUI):
         self.game_log.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         # Status bar
-        self.status_var = tk.StringVar(value="Sẵn sàng. Chọn cài đặt AI và nhấn 'Bắt đầu'")
+        self.status_var = tk.StringVar(value="Sẵn sàng. Chọn cài đặt Agent và nhấn 'Bắt đầu'")
         self.status_bar = tk.Label(self.right_frame, textvariable=self.status_var, 
                                  font=("Arial", 10), bd=1, relief=tk.SUNKEN, anchor=tk.W)
         self.status_bar.pack(fill=tk.X, side=tk.BOTTOM, pady=5)
         
         # Connect combo box events
-        white_ai_combo.bind("<<ComboboxSelected>>", self.on_white_ai_change)
-        black_ai_combo.bind("<<ComboboxSelected>>", self.on_black_ai_change)
+        white_agent_combo.bind("<<ComboboxSelected>>", self.on_white_agent_change)
+        black_agent_combo.bind("<<ComboboxSelected>>", self.on_black_agent_change)
         
         # Draw the board
         self.draw_board()
@@ -148,32 +153,32 @@ class AIvsAIGUI(ChessGUI):
         # Increase window size to accommodate the controls
         self.master.geometry(f"{self.square_size*8 + self.board_padding*2 + 450}x{self.square_size*8 + self.board_padding*2 + 40}")
         
-        # Hook up to master's closing event to stop AI thread safely
+        # Hook up to master's closing event to stop agent thread safely
         self.master.protocol("WM_DELETE_WINDOW", self.on_close)
         
         # Add welcome message to log
-        self.add_to_game_log("Chào mừng đến với chế độ AI vs AI!")
-        self.add_to_game_log("Chọn loại AI và độ sâu tìm kiếm cho từng bên, sau đó nhấn nút 'Bắt đầu'")
+        self.add_to_game_log("Chào mừng đến với chế độ Agent vs Agent!")
+        self.add_to_game_log("Chọn loại Agent và độ sâu tìm kiếm cho từng bên, sau đó nhấn nút 'Bắt đầu'")
     
     def on_close(self):
-        """Safely close the application by stopping any AI threads"""
+        """Safely close the application by stopping any agent threads"""
         self.game_running = False
         if self.thinking_thread and self.thinking_thread.is_alive():
             self.thinking_thread.join(timeout=1.0)
         self.master.destroy()
     
-    def on_white_ai_change(self, event=None):
-        """Handle change in White AI selection"""
-        ai_type = self.white_ai_var.get()
-        if ai_type == "Alpha-Beta":
+    def on_white_agent_change(self, event=None):
+        """Handle change in White Agent selection"""
+        agent_type = self.white_agent_var.get()
+        if agent_type == "Alpha-Beta":
             self.white_depth_frame.pack(side=tk.LEFT, padx=10)
         else:
             self.white_depth_frame.pack_forget()
     
-    def on_black_ai_change(self, event=None):
-        """Handle change in Black AI selection"""
-        ai_type = self.black_ai_var.get()
-        if ai_type == "Alpha-Beta":
+    def on_black_agent_change(self, event=None):
+        """Handle change in Black Agent selection"""
+        agent_type = self.black_agent_var.get()
+        if agent_type == "Alpha-Beta":
             self.black_depth_frame.pack(side=tk.LEFT, padx=10)
         else:
             self.black_depth_frame.pack_forget()
@@ -185,7 +190,7 @@ class AIvsAIGUI(ChessGUI):
         self.game_log.see(tk.END)
     
     def toggle_game(self):
-        """Start or stop the AI vs AI game"""
+        """Start or stop the Agent vs Agent game"""
         if not self.game_running:
             # Start the game
             self.start_game()
@@ -194,7 +199,7 @@ class AIvsAIGUI(ChessGUI):
             self.stop_game()
     
     def toggle_pause(self):
-        """Pause or resume the AI vs AI game"""
+        """Pause or resume the Agent vs Agent game"""
         if not self.pause_requested:
             self.pause_requested = True
             self.pause_button_var.set("Tiếp tục")
@@ -207,12 +212,12 @@ class AIvsAIGUI(ChessGUI):
             self.add_to_game_log("Trận đấu tiếp tục.")
     
     def start_game(self):
-        """Initialize and start a new AI vs AI game"""
-        # Create AI players based on settings
-        self.create_ai_players()
+        """Initialize and start a new Agent vs Agent game"""
+        # Create agent players based on settings
+        self.create_agent_players()
         
-        if not self.white_ai or not self.black_ai:
-            messagebox.showerror("Lỗi", "Không thể khởi tạo AI. Vui lòng kiểm tra lại cài đặt.")
+        if not self.white_agent or not self.black_agent:
+            messagebox.showerror("Lỗi", "Không thể khởi tạo Agent. Vui lòng kiểm tra lại cài đặt.")
             return
         
         # Reset the board if it's not a fresh game
@@ -231,11 +236,11 @@ class AIvsAIGUI(ChessGUI):
         self.thinking_thread.daemon = True
         self.thinking_thread.start()
         
-        self.add_to_game_log("Trận đấu AI vs AI đã bắt đầu!")
-        self.status_var.set("Đang chạy trận đấu AI vs AI...")
+        self.add_to_game_log("Trận đấu Agent vs Agent đã bắt đầu!")
+        self.status_var.set("Đang chạy trận đấu Agent vs Agent...")
     
     def stop_game(self):
-        """Stop the current AI vs AI game"""
+        """Stop the current Agent vs Agent game"""
         self.game_running = False
         self.start_button_var.set("Bắt đầu")
         self.pause_button.config(state=tk.DISABLED)
@@ -266,30 +271,30 @@ class AIvsAIGUI(ChessGUI):
             self.add_to_game_log("Trận đấu đã được khởi tạo lại.")
             self.status_var.set("Trận đấu đã được khởi tạo lại. Nhấn 'Bắt đầu' để bắt đầu trận đấu mới.")
     
-    def create_ai_players(self):
-        """Create AI players based on user settings"""
-        # Create White AI
-        white_ai_type = self.white_ai_var.get()
-        if white_ai_type == "Alpha-Beta":
+    def create_agent_players(self):
+        """Create agent players based on user settings"""
+        # Create White Agent
+        white_agent_type = self.white_agent_var.get()
+        if white_agent_type == "Alpha-Beta":
             white_depth = self.white_depth_var.get()
-            self.white_ai = ChessAI(depth=white_depth)
-            self.add_to_game_log(f"AI Trắng: Alpha-Beta (độ sâu {white_depth})")
+            self.white_agent = ChessAI(depth=white_depth)
+            self.add_to_game_log(f"Agent Trắng: Alpha-Beta (độ sâu {white_depth})")
         else:
-            self.white_ai = BasicAI()
-            self.add_to_game_log("AI Trắng: Cơ bản (chọn nước đi ngẫu nhiên)")
+            self.white_agent = BasicAI()
+            self.add_to_game_log("Agent Trắng: Cơ bản (chọn nước đi ngẫu nhiên)")
         
-        # Create Black AI
-        black_ai_type = self.black_ai_var.get()
-        if black_ai_type == "Alpha-Beta":
+        # Create Black Agent
+        black_agent_type = self.black_agent_var.get()
+        if black_agent_type == "Alpha-Beta":
             black_depth = self.black_depth_var.get()
-            self.black_ai = ChessAI(depth=black_depth)
-            self.add_to_game_log(f"AI Đen: Alpha-Beta (độ sâu {black_depth})")
+            self.black_agent = ChessAI(depth=black_depth)
+            self.add_to_game_log(f"Agent Đen: Alpha-Beta (độ sâu {black_depth})")
         else:
-            self.black_ai = BasicAI()
-            self.add_to_game_log("AI Đen: Cơ bản (chọn nước đi ngẫu nhiên)")
+            self.black_agent = BasicAI()
+            self.add_to_game_log("Agent Đen: Cơ bản (chọn nước đi ngẫu nhiên)")
     
     def run_game(self):
-        """Run the AI vs AI game loop in a separate thread"""
+        """Run the Agent vs Agent game loop in a separate thread"""
         move_count = 0
         max_moves = 200  # Prevent infinite games
         
@@ -302,20 +307,20 @@ class AIvsAIGUI(ChessGUI):
                 if not self.game_running:
                     break
                 
-                # Choose the current AI
-                current_ai = self.white_ai if self.board.is_white_to_move else self.black_ai
+                # Choose the current agent
+                current_agent = self.white_agent if self.board.is_white_to_move else self.black_agent
                 side_name = "Trắng" if self.board.is_white_to_move else "Đen"
                 
                 # Update status
-                status_text = f"AI {side_name} đang suy nghĩ..."
+                status_text = f"Agent {side_name} đang suy nghĩ..."
                 self.master.after(0, lambda t=status_text: self.status_var.set(t))
                 
-                # Get AI's move
+                # Get agent's move
                 start_time = time.time()
-                move = current_ai.choose_move(self.board)
+                move = current_agent.choose_move(self.board)
                 elapsed = time.time() - start_time
                 
-                # Check if game stopped while AI was thinking
+                # Check if game stopped while agent was thinking
                 if not self.game_running:
                     break
                 
@@ -328,7 +333,7 @@ class AIvsAIGUI(ChessGUI):
                 move_str = self.format_move(move)
                 
                 # Add thinking time to log
-                log_text = f"AI {side_name} chọn nước đi {move_str} (thời gian suy nghĩ: {elapsed:.2f}s)"
+                log_text = f"Agent {side_name} chọn nước đi {move_str} (thời gian suy nghĩ: {elapsed:.2f}s)"
                 self.master.after(0, lambda t=log_text: self.add_to_game_log(t))
                 
                 # Make a copy of the move for highlighting (to avoid lambda issues)
@@ -459,20 +464,23 @@ class AIvsAIGUI(ChessGUI):
                 # Đặt game_running thành False trước khi hiển thị hộp thoại
                 self.game_running = False
                 # Cập nhật UI trước, sau đó mới hiển thị thông báo
-                self.status_var.set(f"Chiếu hết! AI {winner} thắng.")
-                self.add_to_game_log(f"Chiếu hết! AI {winner} thắng trận đấu.")
+                self.status_var.set(f"Chiếu hết! Agent {winner} thắng.")
+                self.add_to_game_log(f"Chiếu hết! Agent {winner} thắng trận đấu.")
                 # Gửi thông điệp dừng tới luồng game
                 if was_running:
-                    self.master.after(0, lambda w=winner: self.announce_checkmate(w))
+                    # Hiển thị thông báo và sau đó reset game
+                    messagebox.showinfo("Trận đấu kết thúc", f"Chiếu hết! Agent {winner} thắng trận đấu.")
+                    self.reset_game()
             else:
                 # Đặt game_running thành False trước khi hiển thị hộp thoại
                 self.game_running = False
                 # Cập nhật UI trước, sau đó mới hiển thị thông báo
                 self.status_var.set("Bế tắc! Trận đấu hòa.")
                 self.add_to_game_log("Bế tắc! Trận đấu hòa.")
-                # Gửi thông điệp dừng tới luồng game
+                # Hiển thị thông báo và sau đó reset game
                 if was_running:
-                    self.master.after(0, self.announce_stalemate)
+                    messagebox.showinfo("Trận đấu kết thúc", "Bế tắc! Trận đấu hòa.")
+                    self.reset_game()
             return True
         elif self.board.fifty_move_counter >= 100:
             # Đặt game_running thành False trước khi hiển thị hộp thoại
@@ -480,9 +488,10 @@ class AIvsAIGUI(ChessGUI):
             # Cập nhật UI trước, sau đó mới hiển thị thông báo
             self.status_var.set("Luật 50 nước đi! Trận đấu hòa.")
             self.add_to_game_log("Luật 50 nước đi! Trận đấu hòa.")
-            # Gửi thông điệp dừng tới luồng game
+            # Hiển thị thông báo và sau đó reset game
             if was_running:
-                self.master.after(0, self.announce_fifty_move_rule)
+                messagebox.showinfo("Trận đấu kết thúc", "Luật 50 nước đi! Trận đấu hòa.")
+                self.reset_game()
             return True
         
         # Check for repetition
@@ -491,15 +500,16 @@ class AIvsAIGUI(ChessGUI):
             if zobrist == self.board.current_game_state.zobrist_key:
                 rep_count += 1
         
-        if rep_count >= 50: ##################### 50 hay 3
+        if rep_count >= 50: 
             # Đặt game_running thành False trước khi hiển thị hộp thoại
             self.game_running = False
             # Cập nhật UI trước, sau đó mới hiển thị thông báo
-            self.status_var.set("Lặp lại vị trí 3 lần! Trận đấu hòa.")
-            self.add_to_game_log("Lặp lại vị trí 3 lần! Trận đấu hòa.")
-            # Gửi thông điệp dừng tới luồng game
+            self.status_var.set("Lặp lại vị trí 50 lần! Trận đấu hòa.")
+            self.add_to_game_log("Lặp lại vị trí 50 lần! Trận đấu hòa.")
+            # Hiển thị thông báo và sau đó reset game
             if was_running:
-                self.master.after(0, self.announce_repetition)
+                messagebox.showinfo("Trận đấu kết thúc", "Lặp lại vị trí 50 lần! Trận đấu hòa.")
+                self.reset_game()
             return True
         
         return False
@@ -512,9 +522,9 @@ class AIvsAIGUI(ChessGUI):
         
         if self.board.is_in_check():
             winner = "Trắng" if not self.board.is_white_to_move else "Đen"
-            self.status_var.set(f"Chiếu hết! AI {winner} thắng.")
-            self.add_to_game_log(f"Chiếu hết! AI {winner} thắng trận đấu.")
-            messagebox.showinfo("Trận đấu kết thúc", f"Chiếu hết! AI {winner} thắng trận đấu.")
+            self.status_var.set(f"Chiếu hết! Agent {winner} thắng.")
+            self.add_to_game_log(f"Chiếu hết! Agent {winner} thắng trận đấu.")
+            messagebox.showinfo("Trận đấu kết thúc", f"Chiếu hết! Agent {winner} thắng trận đấu.")
         else:
             self.status_var.set("Bế tắc! Trận đấu hòa.")
             self.add_to_game_log("Bế tắc! Trận đấu hòa.")
@@ -525,9 +535,9 @@ class AIvsAIGUI(ChessGUI):
         self.game_running = False
         self.start_button_var.set("Bắt đầu")
         self.pause_button.config(state=tk.DISABLED)
-        self.status_var.set(f"Chiếu hết! AI {winner} thắng.")
-        self.add_to_game_log(f"Chiếu hết! AI {winner} thắng trận đấu.")
-        messagebox.showinfo("Trận đấu kết thúc", f"Chiếu hết! AI {winner} thắng trận đấu.")
+        self.status_var.set(f"Chiếu hết! Agent {winner} thắng.")
+        self.add_to_game_log(f"Chiếu hết! Agent {winner} thắng trận đấu.")
+        messagebox.showinfo("Trận đấu kết thúc", f"Chiếu hết! Agent {winner} thắng trận đấu.")
     
     def game_over_stalemate(self):
         """Handle stalemate"""
@@ -570,39 +580,62 @@ class AIvsAIGUI(ChessGUI):
         # Đảm bảo nút nhấn ở trạng thái phù hợp
         self.start_button_var.set("Bắt đầu")
         self.pause_button.config(state=tk.DISABLED)
-        # Hiển thị hộp thoại thông báo
-        messagebox.showinfo("Trận đấu kết thúc", f"Chiếu hết! AI {winner} thắng trận đấu.")
+        # Hiển thị hộp thoại thông báo và khởi tạo lại trò chơi khi nhấn OK
+        messagebox.showinfo("Trận đấu kết thúc", f"Chiếu hết! Agent {winner} thắng trận đấu.")
+        # Reset the game after dialog closes
+        self.reset_game()
     
     def announce_stalemate(self):
         """Hiển thị thông báo bế tắc"""
         # Đảm bảo nút nhấn ở trạng thái phù hợp
         self.start_button_var.set("Bắt đầu")
         self.pause_button.config(state=tk.DISABLED)
-        # Hiển thị hộp thoại thông báo
+        # Hiển thị hộp thoại thông báo và khởi tạo lại trò chơi khi nhấn OK
         messagebox.showinfo("Trận đấu kết thúc", "Bế tắc! Trận đấu hòa.")
+        # Reset the game after dialog closes
+        self.reset_game()
     
     def announce_fifty_move_rule(self):
         """Hiển thị thông báo luật 50 nước đi"""
         # Đảm bảo nút nhấn ở trạng thái phù hợp
         self.start_button_var.set("Bắt đầu")
         self.pause_button.config(state=tk.DISABLED)
-        # Hiển thị hộp thoại thông báo
+        # Hiển thị hộp thoại thông báo và khởi tạo lại trò chơi khi nhấn OK
         messagebox.showinfo("Trận đấu kết thúc", "Luật 50 nước đi! Trận đấu hòa.")
+        # Reset the game after dialog closes
+        self.reset_game()
     
     def announce_repetition(self):
         """Hiển thị thông báo lặp lại vị trí 3 lần"""
         # Đảm bảo nút nhấn ở trạng thái phù hợp
         self.start_button_var.set("Bắt đầu")
         self.pause_button.config(state=tk.DISABLED)
-        # Hiển thị hộp thoại thông báo
+        # Hiển thị hộp thoại thông báo và khởi tạo lại trò chơi khi nhấn OK
         messagebox.showinfo("Trận đấu kết thúc", "Lặp lại vị trí 3 lần! Trận đấu hòa.")
+        # Reset the game after dialog closes
+        self.reset_game()
+    
+    def exit_to_main_menu(self):
+        """Exit to main menu to select a different game mode"""
+        # Stop any running game
+        self.game_running = False
+        if self.thinking_thread and self.thinking_thread.is_alive():
+            self.thinking_thread.join(timeout=0.5)
+            
+        # Close the current window and return to main menu
+        self.master.destroy()
+        
+        # Import here to avoid circular imports
+        from src.main import main
+        # Start the main menu
+        main()
 
-def run_ai_vs_ai():
-    """Run the AI vs AI GUI"""
+def run_agent_vs_agent():
+    """Run the Agent vs Agent GUI"""
     root = tk.Tk()
-    root.title("Chess - AI vs AI")
-    app = AIvsAIGUI(root)
+    root.title("Chess - Agent vs Agent")
+    app = AgentvsAgentGUI(root)
     root.mainloop()
 
 if __name__ == "__main__":
-    run_ai_vs_ai()
+    run_agent_vs_agent()

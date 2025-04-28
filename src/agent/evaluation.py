@@ -133,8 +133,7 @@ def evaluate_board(board):
     if black_king_captured:
         return 100000   # White wins
     
-    # Material and position evaluation
-    material_score = 0
+    # Position evaluation
     position_score = 0
     
     # Determine if we're in endgame
@@ -155,19 +154,21 @@ def evaluate_board(board):
         
         # Add to the appropriate score based on piece color
         if is_white(piece):
-            material_score += piece_value
             position_score += piece_position_score
         else:
-            material_score -= piece_value
             position_score -= piece_position_score
+    
+    # Get positional score difference (separate calculation)
+    positional_score_difference = evaluate_positional_score_difference(board)
     
     # Check for specific board features
     mobility_score = evaluate_mobility(board)
     pawn_structure_score = evaluate_pawn_structure(board)
     king_safety_score = evaluate_king_safety(board)
+    king_in_check_score = evaluate_king_in_check(board)
     
     # Combine all scoring factors
-    score = material_score + position_score + mobility_score + pawn_structure_score + king_safety_score
+    score = position_score + mobility_score + pawn_structure_score + king_safety_score + king_in_check_score + positional_score_difference
     
     return score
 
@@ -190,7 +191,7 @@ def count_major_pieces(board, is_white):
 
 def evaluate_mobility(board):
     """Evaluate piece mobility (simplified)."""
-    from src.move_generator import MoveGenerator
+    from src.core.Board.move_generator import MoveGenerator
     
     # Save current game state
     original_is_white_to_move = board.is_white_to_move
@@ -209,7 +210,34 @@ def evaluate_mobility(board):
     board.is_white_to_move = original_is_white_to_move
     
     # Return mobility difference (with a scaling factor)
-    return (white_mobility - black_mobility) * 5
+    return (white_mobility - black_mobility) * 10
+
+def evaluate_positional_score_difference(board):
+    """
+    Calculate the difference between all white pieces' positional scores
+    and all black pieces' positional scores.
+    Returns a positive value if white has better positioning, negative otherwise.
+    """
+    white_position_score = 0
+    black_position_score = 0
+    
+    # Evaluate each square
+    for square in range(64):
+        piece = board.square[square]
+        if piece == NONE:
+            continue
+            
+        # Get position score for this piece
+        piece_position_score = get_piece_position_score(piece, square)
+        
+        # Add to the appropriate score based on piece color
+        if is_white(piece):
+            white_position_score += piece_position_score
+        else:
+            black_position_score += piece_position_score
+    
+    # Return the difference (white - black)
+    return white_position_score - black_position_score
 
 def evaluate_pawn_structure(board):
     """Evaluate pawn structure (simplified)."""
@@ -232,10 +260,39 @@ def evaluate_pawn_structure(board):
     # Penalize doubled pawns
     for i in range(8):
         if white_pawn_files[i] > 1:
-            score -= 20 * (white_pawn_files[i] - 1)
+            score -= 10 * (white_pawn_files[i] - 1)
         if black_pawn_files[i] > 1:
-            score += 20 * (black_pawn_files[i] - 1)
+            score += 10 * (black_pawn_files[i] - 1)
     
+    return score
+
+def evaluate_king_in_check(board):
+    """
+    Evaluates if the king is in check and applies a large penalty.
+    Returns a score from white's perspective.
+    """
+    score = 0
+    
+    # Lưu trạng thái hiện tại
+    original_side_to_move = board.is_white_to_move
+    
+    # Kiểm tra vua trắng
+    board.is_white_to_move = True
+    # Reset cached value since we changed the side to move
+    board.has_cached_in_check_value = False
+    if board.is_in_check():
+        score -= 70000  # Phạt nếu vua trắng bị chiếu
+    
+    # Kiểm tra vua đen
+    board.is_white_to_move = False
+    # Reset cached value again for the other side
+    board.has_cached_in_check_value = False
+    if board.is_in_check():
+        score += 70000  # Thưởng nếu vua đen bị chiếu (phạt đen)
+    
+    # Khôi phục trạng thái ban đầu
+    board.is_white_to_move = original_side_to_move
+    board.has_cached_in_check_value = False  # Đặt lại bộ đệm
     return score
 
 def evaluate_king_safety(board):

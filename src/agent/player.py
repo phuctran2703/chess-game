@@ -1,4 +1,4 @@
-from src.ai.alpha_beta import AlphaBetaAgent
+from src.agent.alpha_beta import AlphaBetaAgent
 
 class ChessAI:
     """

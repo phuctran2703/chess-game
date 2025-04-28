@@ -1,12 +1,12 @@
-from src.move_generator import MoveGenerator
-from src.ai.evaluation import evaluate_board
+from src.core.Board.move_generator import MoveGenerator
+from src.agent.evaluation import evaluate_board
 import random
 import time
 import sys
 
 class AlphaBetaAgent:
     """
-    Chess agent using Alpha-Beta Pruning algorithm
+    Chess agent using Alpha-Beta Pruning + Negamax algorithm
     """
     def __init__(self, max_depth=4, time_limit=None):
         """
@@ -185,7 +185,8 @@ class AlphaBetaAgent:
             
     def set_depth(self, depth):
         """Set the maximum search depth"""
-        self.max_depth = depth
+        if 1 <= depth <= 10:  # Limit depth from 1 to 10
+            self.max_depth = depth
         
     def set_time_limit(self, seconds):
         """Set the maximum time limit for search in seconds"""
