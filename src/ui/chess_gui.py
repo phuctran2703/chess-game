@@ -21,20 +21,27 @@ class ChessGUI:
         self.highlighted = []
         self.original_text = {}
         self.squares = [[None for _ in range(8)] for _ in range(8)]
+        
+        # Thêm padding cho các chỉ số hàng và cột
+        self.board_padding = 80  # Tăng từ 60 lên 80 để có thêm khoảng trống
+        # Khoảng cách giữa ô cờ và chỉ số
+        self.label_margin = 30   # Tăng từ 20 lên 30
 
         # Main frame with left (board) and right (info)
         self.main_frame = tk.Frame(self.master)
-        self.main_frame.pack(fill=tk.BOTH, expand=True)
+        self.main_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
         self.left_frame = tk.Frame(self.main_frame)
-        self.left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=False)
-        self.right_frame = tk.Frame(self.main_frame, padx=20, pady=20)
+        self.left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=False, padx=15)  # Tăng từ 10 lên 15
+        self.right_frame = tk.Frame(self.main_frame, padx=30, pady=20)
         self.right_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # Canvas for board
-        self.canvas = tk.Canvas(self.left_frame, width=self.square_size*8, height=self.square_size*8)
-        self.canvas.pack()
+        self.canvas = tk.Canvas(self.left_frame, width=self.square_size*8 + self.board_padding*2, 
+                               height=self.square_size*8 + self.board_padding*2)
+        self.canvas.pack(padx=15, pady=15)  # Tăng từ 10 lên 15
         self.draw_board()
-        self.master.geometry(f"{self.square_size*8+220}x{self.square_size*8+20}")
+        # Increase window size to accommodate larger padding
+        self.master.geometry(f"{self.square_size*8 + self.board_padding*2 + 250}x{self.square_size*8 + self.board_padding*2 + 40}")
         self.master.bind('<Configure>', self.on_resize)
 
         # Info label
@@ -70,30 +77,89 @@ class ChessGUI:
 
     def on_resize(self, event):
         if event.widget == self.master:
-            new_size = min(event.width-200, event.height)
-            new_square_size = max(16, (new_size - 20) // 8)
+            # Tính toán board_padding trước
+            current_board_padding = max(50, int(self.square_size * 0.5))
+            
+            # Tính toán kích thước có sẵn sau khi trừ đi các khoảng trống và phần thông tin
+            available_width = event.width - 20  # Trừ đi khoảng cho phần thông tin
+            available_height = event.height - 40  # Trừ đi khoảng trên và dưới
+            
+            # Trừ đi khoảng padding cho các chữ cái và số (2 bên)
+            available_board_size = min(available_width - current_board_padding*3, 
+                                      available_height - current_board_padding*3)
+            
+            # Tính kích thước mới cho mỗi ô cờ
+            new_square_size = max(16, available_board_size // 8)
+            
             if new_square_size != self.square_size:
                 self.square_size = new_square_size
                 self.font_size = max(16, int(self.square_size * 0.6))
-                self.canvas.config(width=self.square_size*8, height=self.square_size*8)
+                
+                # Điều chỉnh lại padding khi thay đổi kích thước
+                self.board_padding = max(50, int(self.square_size * 0.5))
+                self.label_margin = max(40, int(self.square_size * 0.5))
+                
+                # Cập nhật kích thước canvas
+                self.canvas.config(width=self.square_size*8 + self.board_padding*2, 
+                                  height=self.square_size*8 + self.board_padding*2)
+                
+                # Vẽ lại bàn cờ
                 self.draw_board()
                 self.update_board()
 
     def draw_board(self):
         colors = ["#f0d9b5", "#b58863"]
+        # Màu cho các chỉ số hàng và cột
+        label_color = "#333333"
         self.canvas.delete("all")
         self.squares = [[None for _ in range(8)] for _ in range(8)]
-        # Vẽ số 1-8 bên trái, chữ a-h bên dưới
+        
+        # Vẽ nền cho khu vực chỉ số
+        self.canvas.create_rectangle(0, 0, self.square_size*8 + self.board_padding*2, 
+                                     self.square_size*8 + self.board_padding*2, 
+                                     fill="#d9d9d9", outline="")
+        
+        # Vẽ số 1-8 bên trái và phải
         for r in range(8):
-            y = r * self.square_size + self.square_size // 2
-            self.canvas.create_text(10, y, text=str(8 - r), font=("Arial", int(self.font_size * 0.7)), anchor="w")
+            y = r * self.square_size + self.square_size // 2 + self.board_padding
+            # Số bên trái
+            self.canvas.create_text(self.board_padding // 2, y, 
+                                   text=str(8 - r), 
+                                   font=("Arial", int(self.font_size * 0.7), "bold"), 
+                                   fill=label_color, anchor="center")
+            # Số bên phải
+            # self.canvas.create_text(self.board_padding + self.square_size*8 + self.board_padding//2, y, 
+            #                        text=str(8 - r), 
+            #                        font=("Arial", int(self.font_size * 0.7), "bold"), 
+            #                        fill=label_color, anchor="center")
+        
+        # Vẽ chữ a-h bên trên và dưới
         for c in range(8):
-            x = c * self.square_size + self.square_size // 2
-            self.canvas.create_text(x, self.square_size * 8 + 10, text=chr(ord('a') + c), font=("Arial", int(self.font_size * 0.7)), anchor="n")
+            x = c * self.square_size + self.square_size // 2 + self.board_padding
+            # Chữ bên trên
+            # self.canvas.create_text(x, self.board_padding // 2, 
+            #                        text=chr(ord('a') + c), 
+            #                        font=("Arial", int(self.font_size * 0.7), "bold"), 
+            #                        fill=label_color, anchor="center")
+            # Chữ bên dưới
+            self.canvas.create_text(x, self.board_padding + self.square_size*8 + self.board_padding//2, 
+                                   text=chr(ord('a') + c), 
+                                   font=("Arial", int(self.font_size * 0.7), "bold"), 
+                                   fill=label_color, anchor="center")
+        
+        # Add board border with margin
+        board_border = self.canvas.create_rectangle(
+            self.board_padding - 2, 
+            self.board_padding - 2, 
+            self.board_padding + self.square_size*8 + 2, 
+            self.board_padding + self.square_size*8 + 2, 
+            width=2, outline="#555555")
+        
+        # Vẽ ô cờ và các quân cờ
         for r in range(8):
             for c in range(8):
-                x1 = c * self.square_size
-                y1 = r * self.square_size
+                x1 = c * self.square_size + self.board_padding
+                y1 = r * self.square_size + self.board_padding
                 x2 = x1 + self.square_size
                 y2 = y1 + self.square_size
                 color = colors[(r + c) % 2]
@@ -120,18 +186,20 @@ class ChessGUI:
             # Chọn quân cờ cùng màu với lượt đi hiện tại
             if piece != NONE and ((self.board.is_white_to_move and is_white(piece)) or (not self.board.is_white_to_move and not is_white(piece))):
                 self.selected_square = square_index
-                legal_targets = self.get_legal_moves_for_square(square_index)
-                self.highlight_legal_moves(legal_targets)
+                legal_moves = self.get_legal_moves_for_square(square_index)
+                self.highlight_legal_moves([move.target_square for move in legal_moves])
         else:
-            legal_targets = self.get_legal_moves_for_square(self.selected_square)
-            if square_index in legal_targets:
+            legal_moves = self.get_legal_moves_for_square(self.selected_square)
+            target_squares = [move.target_square for move in legal_moves]
+            
+            if square_index in target_squares:
                 start_square = self.selected_square
                 target_square = square_index
                 moved_piece = self.board.square[start_square]
                 moved_piece_type = piece_type(moved_piece)
                 
-                # Lấy nước đi cụ thể từ move generator
-                move = self.move_generator.get_move_for_square_target(start_square, target_square)
+                # Tìm nước đi cụ thể từ danh sách các nước đi hợp lệ
+                move = next((m for m in legal_moves if m.target_square == target_square), None)
                 
                 if move:
                     # Nếu là tốt đến hàng cuối, hiện dialog chọn quân phong cấp
@@ -175,8 +243,8 @@ class ChessGUI:
                 if piece != NONE and ((self.board.is_white_to_move and is_white(piece)) or (not self.board.is_white_to_move and not is_white(piece))):
                     self.selected_square = square_index
                     self.clear_highlight()
-                    legal_targets = self.get_legal_moves_for_square(square_index)
-                    self.highlight_legal_moves(legal_targets)
+                    legal_moves = self.get_legal_moves_for_square(square_index)
+                    self.highlight_legal_moves([move.target_square for move in legal_moves])
                 else:
                     self.selected_square = None
                     self.clear_highlight()
