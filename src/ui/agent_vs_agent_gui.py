@@ -629,6 +629,13 @@ class AgentvsAgentGUI(ChessGUI):
         from src.main import main
         # Start the main menu
         main()
+        
+    def _highlight_square(self, row, col, color="#4df542"):
+        """Highlight a square with a specific color"""
+        # Use the updated dictionary structure for squares
+        square = self.squares[row][col]
+        rect = square['rect']
+        self.canvas.itemconfig(rect, fill=color)
 
 def run_agent_vs_agent():
     """Run the Agent vs Agent GUI"""

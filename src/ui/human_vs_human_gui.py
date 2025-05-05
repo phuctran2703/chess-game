@@ -1,8 +1,11 @@
 import tkinter as tk
 from tkinter import messagebox
+import os
+from PIL import Image, ImageTk
 from src.core.Board.board import Board
 from src.core.Board.piece import get_symbol, NONE, is_white, piece_type
 from src.core.Board.move_generator import MoveGenerator
+from src.ui.piece_images import PieceImageManager
 
 class ChessGUI:
     def __init__(self, master, board: Board = None):
@@ -21,6 +24,11 @@ class ChessGUI:
         self.highlighted = []
         self.original_text = {}
         self.squares = [[None for _ in range(8)] for _ in range(8)]
+        
+        # Initialize piece image manager
+        self.piece_manager = PieceImageManager(size=int(self.square_size * 0.85))
+        # Keep track of image references to prevent garbage collection
+        self.piece_images = {}
         
         # Thêm padding cho các chỉ số hàng và cột
         self.board_padding = 80  # Tăng từ 60 lên 80 để có thêm khoảng trống
@@ -128,6 +136,9 @@ class ChessGUI:
                 self.board_padding = max(50, int(self.square_size * 0.5))
                 self.label_margin = max(40, int(self.square_size * 0.5))
                 
+                # Resize piece images
+                self.piece_manager.resize(int(self.square_size * 0.85))
+                
                 # Cập nhật kích thước canvas
                 self.canvas.config(width=self.square_size*8 + self.board_padding*2, 
                                   height=self.square_size*8 + self.board_padding*2)
@@ -137,7 +148,8 @@ class ChessGUI:
                 self.update_board()
 
     def draw_board(self):
-        colors = ["#f0d9b5", "#b58863"]
+        # Light cream and darker brown colors for the chess board
+        colors = ["#f0d9b5", "#b58863"]  # Traditional wood-like colors
         # Màu cho các chỉ số hàng và cột
         label_color = "#333333"
         self.canvas.delete("all")
@@ -195,18 +207,46 @@ class ChessGUI:
                 rect = self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="")
                 square_index = (7 - r) * 8 + c
                 piece = self.board.square[square_index]
-                symbol = get_symbol(piece) if piece != NONE else ''
-                text = self.canvas.create_text(
-                    (x1 + x2) // 2, (y1 + y2) // 2,
-                    text=symbol,
-                    font=("Arial", self.font_size)
-                )
-                self.squares[r][c] = (rect, text)
-                self.canvas.tag_bind(rect, "<Button-1>", lambda e, row=r, col=c: self.on_square_click(row, col))
-                self.canvas.tag_bind(text, "<Button-1>", lambda e, row=r, col=c: self.on_square_click(row, col))
+                
+                # Get piece image if available
+                piece_img = self.piece_manager.get_image(piece)
+                
+                # Create piece representation
+                if piece != NONE:
+                    if piece_img:
+                        # Use image
+                        self.piece_images[(r, c)] = piece_img  # Store reference to prevent garbage collection
+                        piece_obj = self.canvas.create_image(
+                            (x1 + x2) // 2, (y1 + y2) // 2,
+                            image=piece_img,
+                            tags=(f"piece_{square_index}", "piece")
+                        )
+                    else:
+                        # Fallback to text
+                        symbol, color, font = self.piece_manager.get_fallback_text(piece)
+                        piece_obj = self.canvas.create_text(
+                            (x1 + x2) // 2, (y1 + y2) // 2,
+                            text=symbol,
+                            fill=color,
+                            font=font,
+                            tags=(f"piece_{square_index}", "piece")
+                        )
+                else:
+                    piece_obj = None
+                
+                # Store square and piece information
+                self.squares[r][c] = {
+                    'rect': rect,
+                    'piece': piece_obj,
+                    'square_index': square_index
+                }
+                
+                # Add click binding
+                self.canvas.tag_bind(rect, '<Button-1>', lambda e, si=square_index: self.on_square_click(si))
+                if piece_obj:
+                    self.canvas.tag_bind(piece_obj, '<Button-1>', lambda e, si=square_index: self.on_square_click(si))
 
-    def on_square_click(self, row, col):
-        square_index = (7 - row) * 8 + col
+    def on_square_click(self, square_index):
         piece = self.board.square[square_index]
         from src.core.Board.move import Move
         from src.core.Board.piece import PAWN, KING, is_white, piece_type
@@ -276,71 +316,155 @@ class ChessGUI:
                     self.highlight_legal_moves([move.target_square for move in legal_moves])
                 else:
                     self.selected_square = None
-                    self.clear_highlight()
-
+                    self.clear_selection_highlights()
+    
     def get_legal_moves_for_square(self, square_index):
         return self.move_generator.get_legal_moves_for_square(square_index)
-
-    def highlight_legal_moves(self, legal_targets):
-        for target in legal_targets:
-            r = 7 - (target // 8)
-            c = target % 8
-            rect, text_id = self.squares[r][c]
-            self.original_text[(r, c)] = self.canvas.itemcget(text_id, "text")
-            target_piece = self.board.square[target]
-            if target_piece != NONE and is_white(target_piece) != self.board.is_white_to_move:
-                self.canvas.itemconfig(rect, fill="#ff4d4d")
-            else:
-                self.canvas.itemconfig(text_id, text="•")
-            self.highlighted.append((r, c))
-
-    def clear_highlight(self):
-        colors = ["#f0d9b5", "#b58863"]
-        for row, col in self.highlighted:
-            rect, text_id = self.squares[row][col]
-            color = colors[(row + col) % 2]
+    
+    def highlight_moves(self, moves):
+        # Xóa highlights hiện tại
+        for square in self.highlighted:
+            row, col = 7 - (square // 8), square % 8
+            rect = self.squares[row][col]['rect']
+            color = ["#f0d9b5", "#b58863"][(row + col) % 2]
             self.canvas.itemconfig(rect, fill=color)
-            if (row, col) in self.original_text:
-                self.canvas.itemconfig(text_id, text=self.original_text[(row, col)])
-        self.highlighted.clear()
+            
+        # Highlight các nước đi hợp lệ
+        self.highlighted = []
+        for move in moves:
+            target_square = move.target_square
+            row, col = 7 - (target_square // 8), target_square % 8
+            rect = self.squares[row][col]['rect']
+            
+            # Kiểm tra nếu nước đi là ăn quân
+            target_piece = self.board.square[target_square]
+            if target_piece != NONE:
+                # Nước đi ăn quân: highlight màu đỏ
+                self.canvas.itemconfig(rect, fill="#f44336")
+            else:
+                # Nước đi thường: highlight màu xanh
+                self.canvas.itemconfig(rect, fill="#4fc3f7")
+                
+            self.highlighted.append(target_square)
+
+    def highlight_selected(self, square):
+        """Highlight ô cờ được chọn"""
+        row, col = 7 - (square // 8), square % 8
+        rect = self.squares[row][col]['rect']
+        self.canvas.itemconfig(rect, fill="#8bc34a")  # Xanh lá đậm
+        self.highlighted.append(square)
+        
+    def clear_selection_highlights(self):
+        """Xóa tất cả các highlights"""
+        for square in self.highlighted:
+            row, col = 7 - (square // 8), square % 8
+            rect = self.squares[row][col]['rect']
+            color = ["#f0d9b5", "#b58863"][(row + col) % 2]
+            self.canvas.itemconfig(rect, fill=color)
+        
+        self.highlighted = []
+        self.selected_square = None
         self.original_text.clear()
 
     def update_board(self):
+        """Cập nhật bàn cờ từ trạng thái hiện tại"""
+        # Xóa highlights
+        for square in self.highlighted:
+            row, col = 7 - (square // 8), square % 8
+            rect = self.squares[row][col]['rect']
+            color = ["#f0d9b5", "#b58863"][(row + col) % 2]
+            self.canvas.itemconfig(rect, fill=color)
+        self.highlighted = []
+        
+        # Kiểm tra xem vua đã bị ăn chưa
+        self.check_for_king_capture()
+        
+        # Clear previous piece references
+        self.piece_images = {}
+        
+        # No need to clear outlines anymore as we're using transparent images
+        
+        # Cập nhật các quân cờ
         for r in range(8):
             for c in range(8):
                 square_index = (7 - r) * 8 + c
                 piece = self.board.square[square_index]
-                symbol = get_symbol(piece) if piece != NONE else ''
-                rect, text_id = self.squares[r][c]
-                self.canvas.itemconfig(text_id, text=symbol)
-        
-        # Kiểm tra xem vua đã bị ăn chưa
-        self.check_for_king_capture()
+                square = self.squares[r][c]
+                old_piece_obj = square.get('piece')
+                
+                # Remove old piece representation
+                if old_piece_obj:
+                    self.canvas.delete(old_piece_obj)
+                
+                # Add new piece if exists
+                if piece != NONE:
+                    piece_img = self.piece_manager.get_image(piece)
+                    if piece_img:
+                        # Use image
+                        self.piece_images[(r, c)] = piece_img  # Store reference
+                        new_piece = self.canvas.create_image(
+                            (c * self.square_size + self.square_size // 2 + self.board_padding),
+                            (r * self.square_size + self.square_size // 2 + self.board_padding),
+                            image=piece_img,
+                            tags=(f"piece_{square_index}", "piece")
+                        )
+                    else:
+                        # Fallback to text
+                        symbol, color, font = self.piece_manager.get_fallback_text(piece)
+                        
+                        # Create the piece text
+                        new_piece = self.canvas.create_text(
+                            (c * self.square_size + self.square_size // 2 + self.board_padding),
+                            (r * self.square_size + self.square_size // 2 + self.board_padding),
+                            text=symbol,
+                            fill=color,
+                            font=font,
+                            tags=(f"piece_{square_index}", "piece")
+                        )
+                    
+                    # Add click binding to the new piece
+                    self.canvas.tag_bind(new_piece, '<Button-1>', 
+                                        lambda e, si=square_index: self.on_square_click(si))
+                    
+                    # Update square information
+                    square['piece'] = new_piece
+                else:
+                    square['piece'] = None
 
     def check_for_king_capture(self):
         """Kiểm tra nếu vua bị ăn và hiện thông báo người chơi thắng"""
         white_king_captured, black_king_captured = self.board.is_king_captured()
         
-        if white_king_captured or black_king_captured:
-            winner = "Đen" if white_king_captured else "Trắng"
-            self.show_winner(winner)
-    
+        if white_king_captured:
+            messagebox.showinfo("Kết thúc", "Đen thắng!")
+            self.restart_game()
+        elif black_king_captured:
+            messagebox.showinfo("Kết thúc", "Trắng thắng!")
+            self.restart_game()
+            
+        # Cập nhật thông tin lượt đi
+        self.update_info()
+
     def show_winner(self, winner):
         """Hiển thị thông báo người thắng và dừng trò chơi"""
         messagebox.showinfo("Trò chơi kết thúc", f"Người chơi {winner} đã thắng!\nVua đã bị bắt.")
-    
+
     def disable_board(self):
         """Vô hiệu hóa các thao tác trên bàn cờ"""
         # Gỡ bỏ các sự kiện click trên bàn cờ
         for r in range(8):
             for c in range(8):
-                rect, text_id = self.squares[r][c]
+                square = self.squares[r][c]
+                rect = square['rect']
+                piece = square.get('piece')
+                
                 self.canvas.tag_unbind(rect, "<Button-1>")
-                self.canvas.tag_unbind(text_id, "<Button-1>")
+                if piece:
+                    self.canvas.tag_unbind(piece, "<Button-1>")
         
         # Hủy bỏ ô đang chọn và các ô được đánh dấu
         self.selected_square = None
-        self.clear_highlight()
+        self.clear_selection_highlights()
     
     def restart_game(self):
         """Khởi động lại trò chơi"""

@@ -201,15 +201,90 @@ class AIVisualizerGUI(ChessGUI):
         time_limit = self.ai_time_var.get()
         time_limit_str = f"{time_limit} giây" if time_limit > 0 else "không giới hạn"
         self.add_to_thinking_log(f"Giới hạn thời gian đã thay đổi thành {time_limit_str}")
+
+    def add_to_thinking_log(self, message):
+        """Add a message to the thinking log with timestamp"""
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+        self.thinking_log.insert(tk.END, f"[{timestamp}] {message}\n")
+        self.thinking_log.see(tk.END)  # Scroll to the end
+        
+    def _highlight_square(self, row, col, color="#4df542"):
+        """Highlight a square with a specific color"""
+        # Use the updated dictionary structure for squares
+        square = self.squares[row][col]
+        rect = square['rect']
+        self.canvas.itemconfig(rect, fill=color)
+        
+    def on_square_click(self, square_index):
+        """Handle square clicks"""
+        # Disable clicks if AI is thinking
+        if self.ai_thinking:
+            return
+            
+        # Get row and column from square index
+        row, col = divmod(square_index, 8)
+        
+        # Process the click using the parent class method
+        super().on_square_click(square_index)
+        
+        # Check if it's AI's turn after human move
+        self.check_ai_turn()
+        
+    def update_info(self):
+        # Update the info label with current game state
+        super().update_info()
+        
+    def on_close(self):
+        """Safely close the application by stopping any AI threads"""
+        self.ai_enabled = False
+        if self.thinking_thread and self.thinking_thread.is_alive():
+            self.thinking_thread.join(timeout=1.0)
+        self.master.destroy()
     
+    def toggle_ai(self):
+        """Toggle AI on/off"""
+        self.ai_enabled = not self.ai_enabled
+        if self.ai_enabled:
+            self.ai_button_var.set("Tắt AI")
+            self.ai_button.config(bg="#f44336")
+            self.status_var.set("AI đã bật")
+            self.check_ai_turn()
+        else:
+            self.ai_button_var.set("Bật AI")
+            self.ai_button.config(bg="#4CAF50")
+            self.status_var.set("AI đã tắt")
+
+    def on_ai_player_change(self, event=None):
+        """Handle change in AI player selection"""
+        selected = self.ai_player_var.get()
+        if selected == "Trắng":
+            self.ai_player = 0
+        else:
+            self.ai_player = 1
+        self.check_ai_turn()
+
+    def on_depth_change(self, event=None):
+        """Handle change in AI search depth"""
+        depth = self.ai_depth_var.get()
+        self.ai.set_depth(depth)
+        self.add_to_thinking_log(f"Độ sâu tìm kiếm đã thay đổi thành {depth}")
+
+    def on_time_limit_change(self, event=None):
+        """Handle change in AI time limit"""
+        time_limit = self.ai_time_var.get()
+        time_limit_str = f"{time_limit} giây" if time_limit > 0 else "không giới hạn"
+        self.add_to_thinking_log(f"Giới hạn thời gian đã thay đổi thành {time_limit_str}")
+
     def add_to_thinking_log(self, message):
         """Add a message to the thinking log with timestamp"""
         timestamp = time.strftime('%H:%M:%S')
         self.thinking_log.insert(tk.END, f"[{timestamp}] {message}\n")
         self.thinking_log.see(tk.END)
     
-    def on_square_click(self, row, col):
-        """Override the base class method to include AI play"""
+    def on_square_click(self, square_index):
+        """Handle square clicks"""
+        row, col = 7 - (square_index // 8), square_index % 8
         # If AI is thinking, ignore clicks
         if self.ai_thinking:
             return
@@ -231,7 +306,7 @@ class AIVisualizerGUI(ChessGUI):
         current_side = 0 if self.board.is_white_to_move else 1
         if current_side == self.ai_player and self.ai_enabled and not self.ai_thinking:
             self.start_ai_thinking()
-    
+
     def start_ai_thinking(self):
         """Start the AI thinking process in a separate thread"""
         self.ai_thinking = True
@@ -245,7 +320,7 @@ class AIVisualizerGUI(ChessGUI):
         self.thinking_thread = threading.Thread(target=self.ai_think_and_move)
         self.thinking_thread.daemon = True
         self.thinking_thread.start()
-    
+
     def ai_think_and_move(self):
         """AI thinking thread function that updates the visualization"""
         # Create a custom AI agent with visualization callbacks
@@ -274,7 +349,7 @@ class AIVisualizerGUI(ChessGUI):
         
         # Schedule the AI move to be made on the main thread
         self.master.after(500, lambda: self.make_ai_move(move))
-    
+
     def update_thinking_visualization(self, depth, current_depth, move, score, nodes, elapsed):
         """Update the visualization with current thinking information"""
         # Calculate progress
@@ -284,7 +359,7 @@ class AIVisualizerGUI(ChessGUI):
         self.master.after(0, lambda: self._update_visualization_gui(
             progress, move, score, nodes, elapsed
         ))
-    
+
     def _update_visualization_gui(self, progress, move, score, nodes, elapsed):
         """Update GUI elements with thinking data (called on main thread)"""
         # Update progress bar
@@ -311,7 +386,7 @@ class AIVisualizerGUI(ChessGUI):
                 f"Nút: {nodes} | "
                 f"Thời gian: {elapsed:.1f}s"
             )
-    
+
     def update_final_visualization(self, ai_agent, final_move):
         """Update visualization with final decision"""
         self.progress_var.set(100)
@@ -323,7 +398,7 @@ class AIVisualizerGUI(ChessGUI):
         else:
             self.status_var.set("Không tìm thấy nước đi")
             self.add_to_thinking_log("AI không tìm thấy nước đi hợp lệ!")
-    
+
     def make_ai_move(self, move):
         """Make the AI's move on the board"""
         if not move:
@@ -343,7 +418,7 @@ class AIVisualizerGUI(ChessGUI):
         
         # Check for game end
         self.check_for_game_end()
-    
+
     def check_for_game_end(self):
         """Check if the game has ended (checkmate, stalemate, etc.)"""
         move_gen = MoveGenerator(self.board)
@@ -360,94 +435,57 @@ class AIVisualizerGUI(ChessGUI):
         else:
             # Continue game - check if it's AI's turn again
             self.check_ai_turn()
-    
+
     def show_winner(self, winner, reason="thắng"):
         """Override to include AI status"""
         super().show_winner(winner)
         self.status_var.set(f"Trò chơi kết thúc - {winner} {reason}")
         self.add_to_thinking_log(f"Trò chơi kết thúc - {winner} {reason}")
-    
+
     def show_stalemate(self):
         """Show stalemate dialog"""
         messagebox.showinfo("Trò chơi kết thúc", "Hòa cờ do bế tắc!")
         self.status_var.set("Trò chơi kết thúc - Hòa do bế tắc")
         self.add_to_thinking_log("Trò chơi kết thúc - Hòa do bế tắc")
         self.disable_board()
-    
+
     def show_draw(self, reason):
         """Show draw dialog"""
         messagebox.showinfo("Trò chơi kết thúc", f"Hòa cờ do {reason}!")
         self.status_var.set(f"Trò chơi kết thúc - Hòa do {reason}")
         self.add_to_thinking_log(f"Trò chơi kết thúc - Hòa do {reason}")
         self.disable_board()
-    
+
     def format_move(self, move):
         """Format a move object into readable text"""
         if not move:
             return "--"
             
-        # Get coordinates
-        from_file = chr(ord('a') + (move.start_square % 8))
-        from_rank = str(1 + (move.start_square // 8))
-        to_file = chr(ord('a') + (move.target_square % 8))
-        to_rank = str(1 + (move.target_square // 8))
-        
-        # Basic move notation
-        move_str = f"{from_file}{from_rank}-{to_file}{to_rank}"
-        
-        # Add promotion information if applicable
-        from src.core.Board.move import Move
-        if move.is_promotion:
-            promotion_type = ""
-            if move.move_flag == Move.PROMOTE_TO_QUEEN_FLAG:
-                promotion_type = "=Q"
-            elif move.move_flag == Move.PROMOTE_TO_ROOK_FLAG:
-                promotion_type = "=R"
-            elif move.move_flag == Move.PROMOTE_TO_BISHOP_FLAG:
-                promotion_type = "=B"
-            elif move.move_flag == Move.PROMOTE_TO_KNIGHT_FLAG:
-                promotion_type = "=N"
-            move_str += promotion_type
+        from_sq = move.from_square
+        to_sq = move.to_square
+        from_col, from_row = from_sq % 8, from_sq // 8
+        to_col, to_row = to_sq % 8, to_sq // 8
             
-        return move_str
-    
-    def highlight_considered_move(self, move):
-        """Temporarily highlight a move being considered by the AI"""
-        if not move:
-            return
+        col_names = "abcdefgh"
+        row_names = "87654321"
             
-        # Clear any previous highlights
-        self.clear_highlight()
+        from_name = col_names[from_col] + row_names[from_row]
+        to_name = col_names[to_col] + row_names[to_row]
+            
+        return f"{from_name}->{to_name}"
         
-        # Highlight the from square in blue
-        from_square = move.start_square
-        from_row = 7 - (from_square // 8)
-        from_col = from_square % 8
-        self._highlight_square(from_row, from_col, "#4286f4")
-        
-        # Highlight the to square in green
-        to_square = move.target_square
-        to_row = 7 - (to_square // 8)
-        to_col = to_square % 8
-        self._highlight_square(to_row, to_col, "#42f474")
-        
-        # Add to highlighted list to be cleared later
-        self.highlighted.append((from_row, from_col))
-        self.highlighted.append((to_row, to_col))
-
     def exit_to_main_menu(self):
-        """Thoát về màn hình chính để chọn chế độ chơi khác"""
-        # Dừng luồng AI nếu đang chạy
+        """Exit to main menu"""
         self.ai_enabled = False
         if self.thinking_thread and self.thinking_thread.is_alive():
             self.thinking_thread.join(timeout=0.5)
             
-        # Đóng cửa sổ hiện tại
+        # Close the current window
         self.master.destroy()
         
-        # Import thư viện main để tránh circular imports
+        # Import to avoid circular imports
         from src.main import main
-        # Khởi động lại màn hình chính
+        # Start the main menu
         main()
 
 class VisualizationAlphaBetaAgent:
