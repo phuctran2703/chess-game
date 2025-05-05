@@ -859,6 +859,12 @@ class AgentvsAgentGUI(ChessGUI):
         rect = square["rect"]
         self.canvas.itemconfig(rect, fill=color)
 
+    def check_for_king_capture(self):
+        """Override parent's check_for_king_capture to use proper chess rules"""
+        # Only check for checkmate and stalemate, not king captures
+        # Note: The actual game end will be handled by check_for_game_end in this class
+        pass
+
 
 def run_agent_vs_agent():
     """Run the Agent vs Agent GUI"""

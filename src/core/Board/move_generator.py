@@ -19,7 +19,7 @@ class MoveGenerator:
     def generate_legal_moves(self):
         """
         Generate all legal moves for the active side based on the current state of the board.
-        Returns a list of Move objects.
+        Returns a list of Move objects that don't leave the king in check.
         """
         pseudo_legal_moves = []
         for square in range(64):
@@ -47,7 +47,44 @@ class MoveGenerator:
             elif piece_type_val == KING:
                 pseudo_legal_moves.extend(self._king_moves(square, piece))
 
-        return pseudo_legal_moves
+        # Filter out moves that would leave the king in check
+        # Using a simplified approach that doesn't involve making/unmaking moves
+        legal_moves = []
+        king_square = self.board.king_square[self.board.move_colour_index]
+        king_piece = self.board.square[king_square]
+        
+        for move in pseudo_legal_moves:
+            # Special handling for king moves
+            if piece_type(self.board.square[move.start_square]) == KING:
+                # For king moves, we've already verified they don't move into check in _king_moves
+                legal_moves.append(move)
+                continue
+                
+            # For non-king moves, we need to check if they would expose the king to check
+            # Make a simplified test of the move without using make_move/unmake_move
+            is_legal = True
+            
+            # Save original board state we need to modify
+            original_square_start = self.board.square[move.start_square]
+            original_square_target = self.board.square[move.target_square]
+            
+            # Simulate the move
+            self.board.square[move.target_square] = original_square_start
+            self.board.square[move.start_square] = NONE
+            
+            # Check if king is under attack after the move
+            opponent_attacks = self._generate_opponent_attacks()
+            if king_square in opponent_attacks:
+                is_legal = False
+                
+            # Restore the board state
+            self.board.square[move.start_square] = original_square_start
+            self.board.square[move.target_square] = original_square_target
+            
+            if is_legal:
+                legal_moves.append(move)
+
+        return legal_moves
 
     def _pawn_moves(self, square, piece):
         """
@@ -260,6 +297,7 @@ class MoveGenerator:
     def get_legal_moves_for_square(self, square):
         """
         Returns a list of legal moves (Move objects) that the piece at position 'square' can make.
+        Filters out moves that would leave the king in check.
         """
         piece = self.board.square[square]
         if piece == NONE:
@@ -271,7 +309,7 @@ class MoveGenerator:
         ):
             return []
 
-        # Generate all legal moves for this piece
+        # Generate all pseudo-legal moves for this piece
         pseudo_legal_moves = []
         if piece_type(piece) == PAWN:
             pseudo_legal_moves = self._pawn_moves(square, piece)
@@ -286,8 +324,43 @@ class MoveGenerator:
         elif piece_type(piece) == KING:
             pseudo_legal_moves = self._king_moves(square, piece)
 
-        # Return the list of Move objects
-        return pseudo_legal_moves
+        # Filter out moves that would leave the king in check
+        # Using a simplified approach that doesn't involve making/unmaking moves
+        legal_moves = []
+        king_square = self.board.king_square[self.board.move_colour_index]
+        
+        for move in pseudo_legal_moves:
+            # Special handling for king moves
+            if piece_type(self.board.square[move.start_square]) == KING:
+                # For king moves, we've already verified they don't move into check in _king_moves
+                legal_moves.append(move)
+                continue
+                
+            # For non-king moves, we need to check if they would expose the king to check
+            # Make a simplified test of the move without using make_move/unmake_move
+            is_legal = True
+            
+            # Save original board state we need to modify
+            original_square_start = self.board.square[move.start_square]
+            original_square_target = self.board.square[move.target_square]
+            
+            # Simulate the move
+            self.board.square[move.target_square] = original_square_start
+            self.board.square[move.start_square] = NONE
+            
+            # Check if king is under attack after the move
+            opponent_attacks = self._generate_opponent_attacks()
+            if king_square in opponent_attacks:
+                is_legal = False
+                
+            # Restore the board state
+            self.board.square[move.start_square] = original_square_start
+            self.board.square[move.target_square] = original_square_target
+            
+            if is_legal:
+                legal_moves.append(move)
+
+        return legal_moves
 
     def _generate_opponent_attacks(self):
         """
