@@ -4,6 +4,7 @@ import threading
 import time
 from src.core.Board.board import Board
 from src.core.Board.move_generator import MoveGenerator
+from src.core.Board.piece import NONE
 from src.agent.player import ChessAI
 from src.agent.basic_agent import BasicAI
 from src.ui.human_vs_human_gui import ChessGUI
@@ -29,17 +30,25 @@ class AgentvsAgentGUI(ChessGUI):
         # Reorganize the main frame to include agent settings
         self.main_frame.pack_forget()
 
-        # Create a new main frame layout
+        # Create a new main frame layout that fills the entire window
         self.main_frame = tk.Frame(self.master)
-        self.main_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+        self.main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Left frame for board
-        self.left_frame = tk.Frame(self.main_frame)
-        self.left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=False, padx=15)
+        # Create a horizontal paned window to allow resizing between board and controls
+        self.paned_window = tk.PanedWindow(
+            self.main_frame, orient=tk.HORIZONTAL, sashwidth=5, bg="#333333"
+        )
+        self.paned_window.pack(fill=tk.BOTH, expand=True)
+
+        # Left frame for board with fixed minimum width
+        self.left_frame = tk.Frame(self.paned_window, bg="#1E1E1E")
 
         # Right frame for info and agent controls
-        self.right_frame = tk.Frame(self.main_frame, padx=20, pady=20)
-        self.right_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.right_frame = tk.Frame(self.paned_window, padx=15, pady=15, bg="#1E1E1E")
+
+        # Add frames to paned window with appropriate weights
+        self.paned_window.add(self.left_frame, stretch="never", minsize=550)
+        self.paned_window.add(self.right_frame, stretch="always", minsize=300)
 
         # Canvas for board (reuse from parent class)
         self.canvas = tk.Canvas(
@@ -158,24 +167,38 @@ class AgentvsAgentGUI(ChessGUI):
             button_frame,
             textvariable=self.start_button_var,
             command=self.toggle_game,
-            font=("Arial", 11),
-            bg="#4CAF50",
-            fg="white",
+            font=("Arial", 12, "bold"),
+            bg="#00FF00",  # Bright green
+            fg="#000000",  # Black text
             width=12,
+            relief=tk.RAISED,
+            bd=3,
+            padx=5,
+            pady=3,
         )
-        self.start_button.pack(side=tk.LEFT, padx=5)
+        self.start_button.pack(side=tk.LEFT, padx=5, pady=5)
+        # Add hover effect for Start button
+        self.start_button.bind("<Enter>", lambda e: e.widget.config(bg="#7CFC00"))
+        self.start_button.bind("<Leave>", lambda e: e.widget.config(bg="#00FF00"))
 
         # Reset button
         self.reset_button = tk.Button(
             button_frame,
             text="Reset",
             command=self.reset_game,
-            font=("Arial", 11),
-            bg="#f44336",
-            fg="white",
+            font=("Arial", 12, "bold"),
+            bg="#FF3333",  # Bright red
+            fg="#000000",  # Black text
             width=12,
+            relief=tk.RAISED,
+            bd=3,
+            padx=5,
+            pady=3,
         )
-        self.reset_button.pack(side=tk.LEFT, padx=5)
+        self.reset_button.pack(side=tk.LEFT, padx=5, pady=5)
+        # Add hover effect for Reset button
+        self.reset_button.bind("<Enter>", lambda e: e.widget.config(bg="#FF6666"))
+        self.reset_button.bind("<Leave>", lambda e: e.widget.config(bg="#FF3333"))
 
         # Pause/Resume button (initially disabled)
         self.pause_button_var = tk.StringVar(value="Pause")
@@ -183,25 +206,54 @@ class AgentvsAgentGUI(ChessGUI):
             button_frame,
             textvariable=self.pause_button_var,
             command=self.toggle_pause,
-            font=("Arial", 11),
-            bg="#2196F3",
-            fg="white",
+            font=("Arial", 12, "bold"),
+            bg="#33CCFF",  # Bright blue
+            fg="#000000",  # Black text
             width=12,
+            relief=tk.RAISED,
+            bd=3,
+            padx=5,
+            pady=3,
             state=tk.DISABLED,
+            disabledforeground="#000000",  # Keep text black when disabled
         )
-        self.pause_button.pack(side=tk.LEFT, padx=5)
+        self.pause_button.pack(side=tk.LEFT, padx=5, pady=5)
+        # Add hover effect for Pause button
+        self.pause_button.bind(
+            "<Enter>",
+            lambda e: (
+                e.widget.config(bg="#66D9FF")
+                if e.widget["state"] != tk.DISABLED
+                else None
+            ),
+        )
+        self.pause_button.bind(
+            "<Leave>",
+            lambda e: (
+                e.widget.config(bg="#33CCFF")
+                if e.widget["state"] != tk.DISABLED
+                else None
+            ),
+        )
 
         # Exit button - New
         self.exit_button = tk.Button(
             button_frame,
             text="Exit",
             command=self.exit_to_main_menu,
-            font=("Arial", 11),
-            bg="#607D8B",
-            fg="white",
+            font=("Arial", 12, "bold"),
+            bg="#FFCC00",  # Bright yellow/gold
+            fg="#000000",  # Black text
             width=12,
+            relief=tk.RAISED,
+            bd=3,
+            padx=5,
+            pady=3,
         )
-        self.exit_button.pack(side=tk.LEFT, padx=5)
+        self.exit_button.pack(side=tk.LEFT, padx=5, pady=5)
+        # Add hover effect for Exit button
+        self.exit_button.bind("<Enter>", lambda e: e.widget.config(bg="#FFD700"))
+        self.exit_button.bind("<Leave>", lambda e: e.widget.config(bg="#FFCC00"))
 
         # Game log
         log_frame = tk.LabelFrame(
@@ -240,10 +292,10 @@ class AgentvsAgentGUI(ChessGUI):
         self.draw_board()
         self.update_info()
 
-        # Increase window size to accommodate the controls
-        self.master.geometry(
-            f"{self.square_size*8 + self.board_padding*2 + 450}x{self.square_size*8 + self.board_padding*2 + 40}"
-        )
+        # Make sure UI components fill the available space
+        self.master.update()
+        # Don't set a fixed geometry - let the window manager handle it
+        # This allows the maximized state from main.py to take effect
 
         # Hook up to master's closing event to stop agent thread safely
         self.master.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -295,11 +347,13 @@ class AgentvsAgentGUI(ChessGUI):
         if not self.pause_requested:
             self.pause_requested = True
             self.pause_button_var.set("Resume")
+            self.pause_button.config(bg="#FFCC00")  # Change to yellow when paused
             self.status_var.set("Paused. Click 'Resume' to continue the game.")
             self.add_to_game_log("Game paused.")
         else:
             self.pause_requested = False
             self.pause_button_var.set("Pause")
+            self.pause_button.config(bg="#33CCFF")  # Change back to blue
             self.status_var.set("Game resuming...")
             self.add_to_game_log("Game resumed.")
 
@@ -322,7 +376,8 @@ class AgentvsAgentGUI(ChessGUI):
         self.game_running = True
         self.pause_requested = False
         self.start_button_var.set("Stop")
-        self.pause_button.config(state=tk.NORMAL)
+        self.start_button.config(bg="#FF3333")  # Change to red when running
+        self.pause_button.config(state=tk.NORMAL, bg="#33CCFF")
         self.pause_button_var.set("Pause")
 
         # Start the game thread
@@ -337,7 +392,10 @@ class AgentvsAgentGUI(ChessGUI):
         """Stop the current Agent vs Agent game"""
         self.game_running = False
         self.start_button_var.set("Start")
-        self.pause_button.config(state=tk.DISABLED)
+        self.start_button.config(bg="#00FF00")  # Change back to green
+        self.pause_button.config(
+            state=tk.DISABLED, bg="#CCCCCC"
+        )  # Gray out when disabled
         self.status_var.set("Game stopped. Click 'Start' to begin a new game.")
         self.add_to_game_log("Game stopped.")
 
@@ -353,7 +411,10 @@ class AgentvsAgentGUI(ChessGUI):
 
         # Reset UI
         self.start_button_var.set("Start")
-        self.pause_button.config(state=tk.DISABLED)
+        self.start_button.config(bg="#00FF00")  # Reset to green
+        self.pause_button.config(
+            state=tk.DISABLED, bg="#CCCCCC"
+        )  # Gray out when disabled
         self.pause_button_var.set("Pause")
         self.selected_square = None
         self.clear_highlight()
@@ -496,6 +557,83 @@ class AgentvsAgentGUI(ChessGUI):
         self.status_var.set(f"Error: {error_message}")
         self.add_to_game_log(f"Game error: {error_message}")
         messagebox.showerror("Error", f"An error occurred in the game: {error_message}")
+
+    def clear_highlight(self):
+        """Clear all highlighted squares on the board"""
+        for row, col in self.highlighted:
+            # Get original color based on checkerboard pattern
+            color = "#f0d9b5" if (row + col) % 2 == 0 else "#b58863"
+            square = self.squares[row][col]
+            if square and "rect" in square:
+                self.canvas.itemconfig(square["rect"], fill=color)
+        self.highlighted = []
+
+    def update_board(self):
+        """Override the parent's update_board method to handle our tuple-based highlighted squares format"""
+        # Clear highlights
+        self.clear_highlight()
+
+        # Check if the king has been captured
+        self.check_for_king_capture()
+
+        # Clear previous piece references
+        self.piece_images = {}
+
+        # Update the chess pieces
+        for r in range(8):
+            for c in range(8):
+                square_index = (7 - r) * 8 + c
+                piece = self.board.square[square_index]
+                square_info = self.squares[r][c]
+
+                # Remove old piece if exists
+                if square_info["piece"]:
+                    self.canvas.delete(square_info["piece"])
+                    square_info["piece"] = None
+
+                if piece != NONE:
+                    # Get piece image
+                    piece_img = self.piece_manager.get_image(piece)
+
+                    # Board coordinates
+                    x1 = c * self.square_size + self.board_padding
+                    y1 = r * self.square_size + self.board_padding
+                    x2 = x1 + self.square_size
+                    y2 = y1 + self.square_size
+
+                    if piece_img:
+                        # Use image
+                        self.piece_images[(r, c)] = piece_img  # Store reference
+                        piece_obj = self.canvas.create_image(
+                            (x1 + x2) // 2,
+                            (y1 + y2) // 2,
+                            image=piece_img,
+                            tags=(f"piece_{square_index}", "piece"),
+                        )
+                    else:
+                        # Fallback to text
+                        symbol, color, font = self.piece_manager.get_fallback_text(
+                            piece
+                        )
+                        piece_obj = self.canvas.create_text(
+                            (x1 + x2) // 2,
+                            (y1 + y2) // 2,
+                            text=symbol,
+                            fill=color,
+                            font=font,
+                            tags=(f"piece_{square_index}", "piece"),
+                        )
+
+                    square_info["piece"] = piece_obj
+                    # Add click binding
+                    self.canvas.tag_bind(
+                        piece_obj,
+                        "<Button-1>",
+                        lambda e, si=square_index: self.on_square_click(si),
+                    )
+
+        # Update turn information
+        self.update_info()
 
     def highlight_move(self, move):
         """Highlight a move on the board"""
