@@ -4,12 +4,23 @@ class GameState:
     CLEAR_BLACK_KINGSIDE_MASK = 0b1011
     CLEAR_BLACK_QUEENSIDE_MASK = 0b0111
 
-    def __init__(self, captured_piece_type, en_passant_file, castling_rights, fifty_move_counter, zobrist_key):
-        self.captured_piece_type = captured_piece_type # Lưu loại quân cờ bị bắt trong ván cờ
-        self.en_passant_file = en_passant_file # Lưu vị trí của quân tốt đối phương mà có thể ăn qua đường
-        self.castling_rights = castling_rights # Lưu quyền nhập thành của quân cờ
-        self.fifty_move_counter = fifty_move_counter # Lưu số nước đi đã đi mà không có quân cờ nào bị bắt hoặc không có quân tốt nào di chuyển
-        self.zobrist_key = zobrist_key # Lưu giá trị Zobrist key của ván cờ hiện tại
+    def __init__(
+        self,
+        captured_piece_type,
+        en_passant_file,
+        castling_rights,
+        fifty_move_counter,
+        zobrist_key,
+    ):
+        self.captured_piece_type = (
+            captured_piece_type  # Stores the type of captured piece in the game
+        )
+        self.en_passant_file = en_passant_file  # Stores the position of opponent pawn that can be captured by en passant
+        self.castling_rights = castling_rights  # Stores the castling rights of pieces
+        self.fifty_move_counter = fifty_move_counter  # Stores the number of moves made without any piece capture or pawn movement
+        self.zobrist_key = (
+            zobrist_key  # Stores the Zobrist key value of the current game position
+        )
 
     def has_kingside_castle_right(self, white):
         mask = 1 if white else 4

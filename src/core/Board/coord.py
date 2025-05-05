@@ -1,7 +1,7 @@
 class Coord:
     def __init__(self, file_index, rank_index):
-        self.file_index = file_index # cột (0 = cột a, 7 = cột h)
-        self.rank_index = rank_index # hàng (0 = hàng 1, 7 = hàng 8)
+        self.file_index = file_index  # file (0 = a file, 7 = h file)
+        self.rank_index = rank_index  # rank (0 = rank 1, 7 = rank 8)
 
     @classmethod
     def from_square_index(cls, square_index):
@@ -17,16 +17,22 @@ class Coord:
         return self.rank_index * 8 + self.file_index
 
     def __add__(self, other):
-        return Coord(self.file_index + other.file_index, self.rank_index + other.rank_index)
+        return Coord(
+            self.file_index + other.file_index, self.rank_index + other.rank_index
+        )
 
     def __sub__(self, other):
-        return Coord(self.file_index - other.file_index, self.rank_index - other.rank_index)
+        return Coord(
+            self.file_index - other.file_index, self.rank_index - other.rank_index
+        )
 
     def __mul__(self, m):
         return Coord(self.file_index * m, self.rank_index * m)
 
     def __eq__(self, other):
-        return self.file_index == other.file_index and self.rank_index == other.rank_index
+        return (
+            self.file_index == other.file_index and self.rank_index == other.rank_index
+        )
 
     def __repr__(self):
         return f"Coord(file={self.file_index}, rank={self.rank_index})"
