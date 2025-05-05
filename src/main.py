@@ -4,20 +4,21 @@ from src.ui.agent_vs_agent_gui import AgentvsAgentGUI
 import tkinter as tk
 import sys
 
+
 def main():
     """
     Main entry point for the chess game application
     """
     root = tk.Tk()
-    
+
     # Determine which mode to run based on command line arguments
     if len(sys.argv) > 1:
-        if sys.argv[1] == '--ai-visualizer':
+        if sys.argv[1] == "--ai-visualizer":
             # Run with AI visualization (Human vs AI with visualization)
             print("Starting Chess game with AI visualization...")
             app = AIVisualizerGUI(root)
             root.title("Chess Game - AI Visualizer")
-        elif sys.argv[1] == '--ai-vs-ai':
+        elif sys.argv[1] == "--ai-vs-ai":
             # Run Agent vs Agent mode
             print("Starting Agent vs Agent Chess game...")
             app = AgentvsAgentGUI(root)
@@ -32,8 +33,9 @@ def main():
         # No arguments, show mode selection dialog
         root.withdraw()  # Hide the main window temporarily
         show_mode_selection(root)
-    
+
     root.mainloop()
+
 
 def show_mode_selection(root):
     """
@@ -43,64 +45,73 @@ def show_mode_selection(root):
     selection_window.title("Chess Game - Mode Selection")
     selection_window.geometry("500x500")
     selection_window.resizable(False, False)
-    selection_window.protocol("WM_DELETE_WINDOW", root.destroy)  # Close app if dialog is closed
-    
+    selection_window.protocol(
+        "WM_DELETE_WINDOW", root.destroy
+    )  # Close app if dialog is closed
+
     # Center the window
-    selection_window.geometry("+%d+%d" % (
-        root.winfo_screenwidth() // 2 - 250,
-        root.winfo_screenheight() // 2 - 300))
-    
-    # Title label
-    title_label = tk.Label(selection_window, text="Chess Game", font=("Arial", 24, "bold"))
+    selection_window.geometry(
+        "+%d+%d"
+        % (root.winfo_screenwidth() // 2 - 250, root.winfo_screenheight() // 2 - 300)
+    )
+
+    title_label = tk.Label(
+        selection_window, text="Chess Game", font=("Arial", 24, "bold")
+    )
     title_label.pack(pady=20)
-    
+
     # Mode selection frame
     selection_frame = tk.Frame(selection_window)
     selection_frame.pack(fill=tk.BOTH, expand=True, padx=40, pady=20)
-    
+
     # Regular Chess mode
     normal_button = tk.Button(
-        selection_frame, 
-        text="Chơi Thường", 
+        selection_frame,
+        text="Regular Game",
         font=("Arial", 14),
-        bg="#4CAF50", fg="white",
+        bg="#4CAF50",
+        fg="white",
         height=2,
-        command=lambda: launch_mode(root, selection_window, "normal")
+        command=lambda: launch_mode(root, selection_window, "normal"),
     )
     normal_button.pack(fill=tk.X, pady=10)
-    
+
     # Human vs AI with visualization
     ai_viz_button = tk.Button(
-        selection_frame, 
-        text="Người vs Agent", 
+        selection_frame,
+        text="Human vs Agent",
         font=("Arial", 14),
-        bg="#2196F3", fg="white",
+        bg="#2196F3",
+        fg="white",
         height=2,
-        command=lambda: launch_mode(root, selection_window, "ai-viz")
+        command=lambda: launch_mode(root, selection_window, "ai-viz"),
     )
     ai_viz_button.pack(fill=tk.X, pady=10)
-    
+
     # Agent vs Agent mode
     ai_vs_ai_button = tk.Button(
-        selection_frame, 
-        text="Agent vs Agent", 
+        selection_frame,
+        text="Agent vs Agent",
         font=("Arial", 14),
-        bg="#9C27B0", fg="white",
+        bg="#9C27B0",
+        fg="white",
         height=2,
-        command=lambda: launch_mode(root, selection_window, "ai-vs-ai")
+        command=lambda: launch_mode(root, selection_window, "ai-vs-ai"),
     )
     ai_vs_ai_button.pack(fill=tk.X, pady=10)
-    
+
     # Exit button
     exit_button = tk.Button(
-        selection_frame, 
-        text="Thoát", 
+        selection_frame,
+        text="Exit",
         font=("Arial", 14),
-        bg="#f44336", fg="white",
+        bg="#f44336",
+        fg="white",
         height=2,
-        command=root.destroy
+        command=root.destroy,
     )
     exit_button.pack(fill=tk.X, pady=10)
+
 
 def launch_mode(root, selection_window, mode):
     """
@@ -108,10 +119,10 @@ def launch_mode(root, selection_window, mode):
     """
     selection_window.destroy()
     root.deiconify()  # Show the main window
-    
-    # Cấu hình màn hình phóng to
-    root.state('zoomed')  # Phóng to màn hình trên Windows
-    
+
+    # Configure fullscreen
+    root.state("zoomed")  # Maximize screen on Windows
+
     if mode == "normal":
         app = ChessGUI(root)
         root.title("Chess Game")
@@ -121,6 +132,7 @@ def launch_mode(root, selection_window, mode):
     elif mode == "ai-vs-ai":
         app = AgentvsAgentGUI(root)
         root.title("Chess Game - Agent vs Agent")
+
 
 if __name__ == "__main__":
     main()
