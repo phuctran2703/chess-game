@@ -58,6 +58,7 @@ class AlphaBetaAgent:
 
         # Color factor (1 for white, -1 for black)
         color_factor = 1 if board.is_white_to_move else -1
+        self.original_color = color_factor
 
         # Iterative deepening
         for current_depth in range(1, self.max_depth + 1):
@@ -135,7 +136,8 @@ class AlphaBetaAgent:
         # Leaf node (terminal position or max depth reached)
         if depth == 0:
             self.nodes_evaluated += 1
-            return color_factor * evaluate_board(board)
+            evaluate_score = color_factor * (evaluate_board(board) - self.original_color*board.fifty_move_counter*10)
+            return evaluate_score
 
         move_generator = MoveGenerator(board)
         legal_moves = move_generator.generate_legal_moves()
