@@ -7,6 +7,8 @@ from src.core.Board.move_generator import MoveGenerator
 from src.core.Board.piece import NONE
 from src.agent.player import ChessAI
 from src.agent.basic_agent import BasicAI
+from src.agent.skill_assessment import SkillAssessor
+from src.agent.skill_level import get_skill_level_description
 from src.ui.human_vs_human_gui import ChessGUI
 
 
@@ -139,6 +141,22 @@ class AgentvsAgentGUI(ChessGUI):
             width=5,
         )
         black_depth_spinner.pack(side=tk.LEFT, padx=5)
+
+        # Skill Level Assessment Button
+        skill_frame = tk.Frame(self.agent_control_frame)
+        skill_frame.pack(anchor="w", fill=tk.X, pady=5)
+
+        self.assess_button = tk.Button(
+            skill_frame,
+            text="Assess Agent Skill",
+            command=self.assess_agent_skill,
+            font=("Arial", 11),
+            bg="#FFCC00",  # Yellow
+            fg="#000000",  # Black text
+            padx=5,
+            pady=2,
+        )
+        self.assess_button.pack(side=tk.LEFT, padx=5)
 
         # Game speed control
         speed_frame = tk.Frame(self.agent_control_frame)
@@ -435,20 +453,40 @@ class AgentvsAgentGUI(ChessGUI):
         if white_agent_type == "Alpha-Beta":
             white_depth = self.white_depth_var.get()
             self.white_agent = ChessAI(depth=white_depth)
+            white_skill = self.white_agent.get_skill_level()
+            white_skill_desc = get_skill_level_description(white_skill)
             self.add_to_game_log(f"White Agent: Alpha-Beta (depth {white_depth})")
+            self.add_to_game_log(
+                f"White Skill Level: {white_skill} - {white_skill_desc}"
+            )
         else:
             self.white_agent = BasicAI()
+            white_skill = self.white_agent.get_skill_level()
+            white_skill_desc = get_skill_level_description(white_skill)
             self.add_to_game_log("White Agent: Basic (random move selection)")
+            self.add_to_game_log(
+                f"White Skill Level: {white_skill} - {white_skill_desc}"
+            )
 
         # Create Black Agent
         black_agent_type = self.black_agent_var.get()
         if black_agent_type == "Alpha-Beta":
             black_depth = self.black_depth_var.get()
             self.black_agent = ChessAI(depth=black_depth)
+            black_skill = self.black_agent.get_skill_level()
+            black_skill_desc = get_skill_level_description(black_skill)
             self.add_to_game_log(f"Black Agent: Alpha-Beta (depth {black_depth})")
+            self.add_to_game_log(
+                f"Black Skill Level: {black_skill} - {black_skill_desc}"
+            )
         else:
             self.black_agent = BasicAI()
+            black_skill = self.black_agent.get_skill_level()
+            black_skill_desc = get_skill_level_description(black_skill)
             self.add_to_game_log("Black Agent: Basic (random move selection)")
+            self.add_to_game_log(
+                f"Black Skill Level: {black_skill} - {black_skill_desc}"
+            )
 
     def run_game(self):
         """Run the Agent vs Agent game loop in a separate thread"""
@@ -837,6 +875,77 @@ class AgentvsAgentGUI(ChessGUI):
         self.pause_button.config(state=tk.DISABLED)
         messagebox.showinfo("Game Over", "Threefold repetition! The game is a draw.")
         self.reset_game()
+
+    def assess_agent_skill(self):
+        """Assess the skill level of the configured agents"""
+        # Create agents based on current settings
+        self.create_agent_players()
+
+        if not self.white_agent or not self.black_agent:
+            messagebox.showerror(
+                "Error", "Unable to initialize Agents. Please check settings."
+            )
+            return
+
+        assessor = SkillAssessor()
+
+        self.status_var.set("Assessing agent skill levels...")
+        self.add_to_game_log("Starting skill assessment...")
+
+        # Run assessment in a separate thread to avoid freezing UI
+        assessment_thread = threading.Thread(
+            target=self._run_assessment, args=(assessor,)
+        )
+        assessment_thread.daemon = True
+        assessment_thread.start()
+
+    def _run_assessment(self, assessor):
+        """Run the skill assessment in a background thread"""
+        try:
+            # Assess white agent (quick assessment without test games)
+            white_skill = self.white_agent.get_skill_level()
+            white_desc = get_skill_level_description(white_skill)
+
+            # Assess black agent (quick assessment without test games)
+            black_skill = self.black_agent.get_skill_level()
+            black_desc = get_skill_level_description(black_skill)
+
+            # Update UI with results
+            self.master.after(
+                0,
+                lambda: self._show_assessment_results(
+                    white_skill, white_desc, black_skill, black_desc
+                ),
+            )
+
+        except Exception as e:
+            import traceback
+
+            error_message = f"Assessment error: {str(e)}\n{traceback.format_exc()}"
+            self.master.after(0, lambda err=error_message: self.handle_game_error(err))
+
+    def _show_assessment_results(
+        self, white_skill, white_desc, black_skill, black_desc
+    ):
+        """Display the assessment results"""
+        # Update log with results
+        self.add_to_game_log("Skill Assessment Results:")
+        self.add_to_game_log(f"White Agent: {white_skill}")
+        self.add_to_game_log(f"  - {white_desc}")
+        self.add_to_game_log(f"Black Agent: {black_skill}")
+        self.add_to_game_log(f"  - {black_desc}")
+
+        self.status_var.set("Skill assessment completed.")
+
+        # Show results in a message box
+        message = (
+            f"Skill Assessment Results:\n\n"
+            f"White Agent: {white_skill}\n"
+            f"{white_desc}\n\n"
+            f"Black Agent: {black_skill}\n"
+            f"{black_desc}"
+        )
+        messagebox.showinfo("Skill Assessment Results", message)
 
     def exit_to_main_menu(self):
         """Exit to main menu to select a different game mode"""
