@@ -169,10 +169,10 @@ def evaluate_board(board):
     stalemate_score = evaluate_stalemate(board)
     
     # show all scores
-    print(f"Position Score: {position_score}")
-    print(f"Mobility Score: {mobility_score}")
-    print(f"Pawn Structure Score: {pawn_structure_score}")
-    print(f"Stalemate Score: {stalemate_score}")
+    # print(f"Position Score: {position_score}")
+    # print(f"Mobility Score: {mobility_score}")
+    # print(f"Pawn Structure Score: {pawn_structure_score}")
+    # print(f"Stalemate Score: {stalemate_score}")
     # Combine all scoring factors
     score = (
         position_score
