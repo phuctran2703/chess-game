@@ -117,13 +117,44 @@ class Board:
 
     def make_move(self, move, in_search=False):
         """Make a move"""
+        from src.core.Board.piece import piece_type, KING
+        
         # Get basic move information
         start_square = move.start_square
         target_square = move.target_square
         move_flag = move.move_flag
         is_promotion = move.is_promotion
         is_en_passant = move_flag == Move.EN_PASSANT_CAPTURE_FLAG
+        
+        # Check if the target square has a king - prevent king captures
+        target_piece = self.square[target_square]
+        if piece_type(target_piece) == KING:
+            # This move would capture a king, which is illegal in chess
+            # In normal chess, this situation should never occur as it would be an invalid move
+            return False
 
+        # Get piece information
+        moved_piece = self.square[start_square]
+        moved_piece_type = piece_type(moved_piece)
+        target_piece_type = piece_type(target_piece)
+        
+        # Save previous state before making move
+        new_en_passant_file = 0
+        captured_piece_type = piece_type(target_piece)
+        prev_castle_state = (
+            0 if not self.current_game_state else self.current_game_state.castling_rights
+        )
+        new_castling_rights = prev_castle_state
+
+        # Save history
+        if not in_search:
+            if self.current_game_state:
+                self.game_state_history.append(self.current_game_state)
+                self.repetition_position_history.append(
+                    self.current_game_state.zobrist_key
+                )
+            self.all_game_moves.append(move)
+        
         # Related pieces
         moved_piece = self.square[start_square]
         moved_piece_type = piece_type(moved_piece)
@@ -149,7 +180,14 @@ class Board:
             capture_square = target_square
             if is_en_passant:
                 capture_square = target_square + (-8 if self.is_white_to_move else 8)
-            self.all_piece_lists[captured_piece].remove_piece_at_square(capture_square)
+                
+            # Get the piece_list for the captured piece
+            piece_list = self.all_piece_lists[captured_piece]
+            
+            # Check if the piece_list exists and if the square is in the map
+            if piece_list is not None and piece_list.map[capture_square] is not None:
+                piece_list.remove_piece_at_square(capture_square)
+                
             self.piece_bitboards[captured_piece] = clear_square(
                 self.piece_bitboards[captured_piece], capture_square
             )
@@ -280,6 +318,13 @@ class Board:
             else make_piece(PAWN, self.move_colour)
         )
         moved_piece_type = piece_type(moved_piece)
+        
+        # Handle case where the move was rejected during make_move
+        # This might happen if the move was attempting to capture a king
+        if not self.current_game_state:
+            # This move was never actually applied, nothing to undo
+            return
+            
         captured_piece_type = self.current_game_state.captured_piece_type
 
         # Move type
@@ -314,7 +359,12 @@ class Board:
             self.colour_bitboards[self.opponent_colour_index] = set_square(
                 self.colour_bitboards[self.opponent_colour_index], capture_square
             )
-            self.all_piece_lists[captured_piece].add_piece_at_square(capture_square)
+            
+            # Safely add the piece back to its list
+            piece_list = self.all_piece_lists[captured_piece]
+            if piece_list is not None:
+                piece_list.add_piece_at_square(capture_square)
+                
             self.square[capture_square] = captured_piece
 
         # Handle castling

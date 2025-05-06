@@ -528,16 +528,25 @@ class ChessGUI:
 
     def check_for_king_capture(self):
         """Check if king is captured and display winner message"""
-        white_king_captured, black_king_captured = self.board.is_king_captured()
-
-        if white_king_captured:
-            messagebox.showinfo("Game Over", "Black wins!")
-            self.restart_game()
-        elif black_king_captured:
-            messagebox.showinfo("Game Over", "White wins!")
-            self.restart_game()
-
-        # Update turn information
+        # Don't end the game just because a king could theoretically be captured
+        # This will be called after a move is made, so we need to determine if the game should end
+        
+        # Check for checkmate or stalemate
+        move_gen = MoveGenerator(self.board)
+        legal_moves = move_gen.generate_legal_moves()
+        
+        if not legal_moves:
+            if self.board.is_in_check():
+                # If no legal moves and in check, it's checkmate
+                winner = "White" if not self.board.is_white_to_move else "Black"
+                messagebox.showinfo("Game Over", f"{winner} wins by checkmate!")
+                self.restart_game()
+            else:
+                # If no legal moves and not in check, it's stalemate
+                messagebox.showinfo("Game Over", "Game ends in stalemate (draw)!")
+                self.restart_game()
+        
+        # Update turn information regardless
         self.update_info()
 
     def show_winner(self, winner):

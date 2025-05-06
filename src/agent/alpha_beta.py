@@ -66,7 +66,11 @@ class AlphaBetaAgent:
 
             # Search each move
             for move in legal_moves:
-                board.make_move(move, in_search=True)
+                # Try to make the move - if it returns False, skip it
+                move_result = board.make_move(move, in_search=True)
+                if move_result is False:
+                    # This move was rejected (likely a king capture) - skip it
+                    continue
 
                 # Search from this position
                 score = -self._alpha_beta(
@@ -150,7 +154,11 @@ class AlphaBetaAgent:
 
         # Search all moves
         for move in legal_moves:
-            board.make_move(move, in_search=True)
+            # Try to make the move - if it returns False, skip it
+            move_result = board.make_move(move, in_search=True)
+            if move_result is False:
+                # This move was rejected (likely a king capture) - skip it
+                continue
 
             # Recursively search
             score = -self._alpha_beta(board, depth - 1, -beta, -alpha, -color_factor)
