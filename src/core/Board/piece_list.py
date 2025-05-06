@@ -30,6 +30,10 @@ class PieceList:
         self.num_pieces += 1
 
     def remove_piece_at_square(self, square):
+        # Prevent out-of-range error
+        if self.num_pieces == 0:
+            return
+
         # Get the index of the piece to remove
         piece_index = self.map[square]
         

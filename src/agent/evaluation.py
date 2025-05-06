@@ -1,4 +1,5 @@
 from src.core.Board.piece import *
+from src.core.Board.move_generator import MoveGenerator
 
 # Piece values in centipawns (1 pawn = 100 centipawns)
 PIECE_VALUES = {
@@ -6,8 +7,8 @@ PIECE_VALUES = {
     KNIGHT: 300,
     BISHOP: 300,
     ROOK: 500,
-    QUEEN: 900,
-    KING: 20000,  # High value to ensure king's safety
+    QUEEN: 1000,
+    KING: 2000,  # High value to ensure king's safety
 }
 
 # Piece-square tables for positional evaluation
@@ -511,6 +512,40 @@ def get_piece_position_score(piece, square):
         return position_table[mirror_square]
 
 
+def is_stalemate(board):
+    """
+    Check if the position is a stalemate (no legal moves and not in check).
+    
+    Parameters:
+    - board: Current board state
+    
+    Returns:
+    - True if stalemate, False otherwise
+    """
+    
+    move_gen = MoveGenerator(board)
+    legal_moves = move_gen.generate_legal_moves()
+    
+    # Stalemate occurs when there are no legal moves and the king is not in check
+    return not legal_moves and not board.is_in_check()
+
+
+def evaluate_stalemate(board):
+    """
+    Evaluate stalemate position with a penalty.
+    Returns a negative score to be added to total evaluation.
+    
+    Parameters:
+    - board: Current board state
+    
+    Returns:
+    - Penalty score for stalemate (-100)
+    """
+    if is_stalemate(board):
+        return -10000
+    return 0
+
+
 def evaluate_board(board):
     """
     Evaluate the current board position.
@@ -523,10 +558,10 @@ def evaluate_board(board):
     # Check if king is captured (shouldn't normally happen in a real game)
     white_king_captured, black_king_captured = board.is_king_captured()
     if white_king_captured:
-        return -100000  # Black wins
+        return -500  # Black wins
     if black_king_captured:
-        return 100000  # White wins
-
+        return 500  # White wins
+    
     # Position evaluation
     position_score = 0
 
@@ -548,27 +583,23 @@ def evaluate_board(board):
 
         # Add to the appropriate score based on piece color
         if is_white(piece):
-            position_score += piece_position_score
+            position_score += piece_value + piece_position_score
         else:
-            position_score -= piece_position_score
-
-    # Get positional score difference (separate calculation)
-    positional_score_difference = evaluate_positional_score_difference(board)
+            position_score -= piece_value + piece_position_score
 
     # Check for specific board features
     mobility_score = evaluate_mobility(board)
     pawn_structure_score = evaluate_pawn_structure(board)
-    king_safety_score = evaluate_king_safety(board)
-    king_in_check_score = evaluate_king_in_check(board)
-
+    fifty_move_rule_score = evaluate_fifty_move_rule(board)
+    stalemate_score = evaluate_stalemate(board)
+    
     # Combine all scoring factors
     score = (
         position_score
         + mobility_score
         + pawn_structure_score
-        + king_safety_score
-        + king_in_check_score
-        + positional_score_difference
+        + fifty_move_rule_score
+        + stalemate_score
     )
 
     return score
@@ -600,8 +631,6 @@ def count_major_pieces(board, is_white):
 
 def evaluate_mobility(board):
     """Evaluate piece mobility (simplified)."""
-    from src.core.Board.move_generator import MoveGenerator
-
     # Save current game state
     original_is_white_to_move = board.is_white_to_move
 
@@ -619,34 +648,11 @@ def evaluate_mobility(board):
     board.is_white_to_move = original_is_white_to_move
 
     # Return mobility difference (with a scaling factor)
-    return (white_mobility - black_mobility) * 10
-
-
-def evaluate_positional_score_difference(board):
-    """
-    Calculate the difference between all white pieces' positional scores
-    and all black pieces' positional scores.
-    Returns a positive value if white has better positioning, negative otherwise.
-    """
-    white_position_score = 0
-    black_position_score = 0
-
-    # Evaluate each square
-    for square in range(64):
-        piece = board.square[square]
-        if piece == NONE:
-            continue
-
-        piece_position_score = get_piece_position_score(piece, square)
-
-        # Add to the appropriate score based on piece color
-        if is_white(piece):
-            white_position_score += piece_position_score
-        else:
-            black_position_score += piece_position_score
-
-    # Return the difference (white - black)
-    return white_position_score - black_position_score
+    # return (white_mobility - black_mobility) * 100
+    if original_is_white_to_move:
+        return (- black_mobility)
+    else:
+        return (white_mobility)
 
 
 def evaluate_pawn_structure(board):
@@ -677,61 +683,34 @@ def evaluate_pawn_structure(board):
     return score
 
 
-def evaluate_king_in_check(board):
+def evaluate_fifty_move_rule(board):
     """
-    Evaluates if the king is in check and applies a large penalty.
-    Returns a score from white's perspective.
+    Evaluate the position based on the fifty move rule counter.
+    Penalizes positions that are getting close to a draw by the 50-move rule.
+    Returns a score that is applied from the perspective of the side to move.
     """
-    score = 0
-
-    # Save current state
-    original_side_to_move = board.is_white_to_move
-
-    # Check white king
-    board.is_white_to_move = True
-    # Reset cached value since we changed the side to move
-    board.has_cached_in_check_value = False
-    if board.is_in_check():
-        score -= 70000  # Penalty if white king is in check
-
-    # Check black king
-    board.is_white_to_move = False
-    # Reset cached value again for the other side
-    board.has_cached_in_check_value = False
-    if board.is_in_check():
-        score += 70000  # Reward if black king is in check (penalty for black)
-
-    # Restore original state
-    board.is_white_to_move = original_side_to_move
-    board.has_cached_in_check_value = False  # Reset cache
-    return score
+    # Get the current fifty move counter (increments with each half-move without capture or pawn move)
+    fifty_move_counter = board.fifty_move_counter
+    
+    # If we're very close to a draw by fifty move rule (over 80 half-moves)
+    penalty = (fifty_move_counter) * 50
+    return -penalty
 
 
-def evaluate_king_safety(board):
-    """Evaluate king safety (simplified)."""
-    score = 0
-
-    # Penalize exposed kings
-    white_king_square = board.king_square[board.WHITE_INDEX]
-    black_king_square = board.king_square[board.BLACK_INDEX]
-
-    # Check if kings are close to the edge (safer in the opening/middlegame)
-    if not is_endgame_position(board):
-        white_king_file = white_king_square % 8
-        white_king_rank = white_king_square // 8
-        black_king_file = black_king_square % 8
-        black_king_rank = black_king_square // 8
-
-        # Kings should be castled (on the first rank for white, 8th for black)
-        if white_king_rank != 0:
-            score -= 30
-        if black_king_rank != 7:
-            score += 30
-
-        # Kings should be toward the edges in middle game
-        white_king_centrality = 3.5 - abs(3.5 - white_king_file)
-        black_king_centrality = 3.5 - abs(3.5 - black_king_file)
-        score -= white_king_centrality * 10
-        score += black_king_centrality * 10
-
-    return score
+def evaluate_material_advantage(board):
+    """Calculate the material advantage (positive for white, negative for black)"""
+    white_material = 0
+    black_material = 0
+    
+    for square in range(64):
+        piece = board.square[square]
+        if piece_type(piece) == NONE:
+            continue
+            
+        value = PIECE_VALUES.get(piece_type(piece), 0)
+        if is_white(piece):
+            white_material += value
+        else:
+            black_material += value
+            
+    return white_material - black_material

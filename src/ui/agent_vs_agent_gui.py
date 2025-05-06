@@ -491,7 +491,7 @@ class AgentvsAgentGUI(ChessGUI):
     def run_game(self):
         """Run the Agent vs Agent game loop in a separate thread"""
         move_count = 0
-        max_moves = 200  # Prevent infinite games
+        max_moves = 2000  # Prevent infinite games
 
         try:
             while self.game_running and move_count < max_moves:
