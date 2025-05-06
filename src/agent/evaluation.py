@@ -512,40 +512,6 @@ def get_piece_position_score(piece, square):
         return position_table[mirror_square]
 
 
-def is_stalemate(board):
-    """
-    Check if the position is a stalemate (no legal moves and not in check).
-    
-    Parameters:
-    - board: Current board state
-    
-    Returns:
-    - True if stalemate, False otherwise
-    """
-    
-    move_gen = MoveGenerator(board)
-    legal_moves = move_gen.generate_legal_moves()
-    
-    # Stalemate occurs when there are no legal moves and the king is not in check
-    return not legal_moves and not board.is_in_check()
-
-
-def evaluate_stalemate(board):
-    """
-    Evaluate stalemate position with a penalty.
-    Returns a negative score to be added to total evaluation.
-    
-    Parameters:
-    - board: Current board state
-    
-    Returns:
-    - Penalty score for stalemate (-100)
-    """
-    if is_stalemate(board):
-        return -10000
-    return 0
-
-
 def evaluate_board(board):
     """
     Evaluate the current board position.
@@ -593,6 +559,12 @@ def evaluate_board(board):
     fifty_move_rule_score = evaluate_fifty_move_rule(board)
     stalemate_score = evaluate_stalemate(board)
     
+    # show all scores
+    # print(f"Position Score: {position_score}")
+    # print(f"Mobility Score: {mobility_score}")
+    # print(f"Pawn Structure Score: {pawn_structure_score}")
+    # print(f"Fifty Move Rule Score: {fifty_move_rule_score}")
+    # print(f"Stalemate Score: {stalemate_score}")
     # Combine all scoring factors
     score = (
         position_score
@@ -694,23 +666,43 @@ def evaluate_fifty_move_rule(board):
     
     # If we're very close to a draw by fifty move rule (over 80 half-moves)
     penalty = (fifty_move_counter) * 50
-    return -penalty
 
-
-def evaluate_material_advantage(board):
-    """Calculate the material advantage (positive for white, negative for black)"""
-    white_material = 0
-    black_material = 0
+    if board.is_white_to_move:
+        return penalty
+    else:
+        return -penalty
     
-    for square in range(64):
-        piece = board.square[square]
-        if piece_type(piece) == NONE:
-            continue
-            
-        value = PIECE_VALUES.get(piece_type(piece), 0)
-        if is_white(piece):
-            white_material += value
+def is_stalemate(board):
+    """
+    Check if the position is a stalemate (no legal moves and not in check).
+    
+    Parameters:
+    - board: Current board state
+    
+    Returns:
+    - True if stalemate, False otherwise
+    """
+    
+    move_gen = MoveGenerator(board)
+    legal_moves = move_gen.generate_legal_moves()
+    
+    # Stalemate occurs when there are no legal moves and the king is not in check
+    return not legal_moves and not board.is_in_check()
+
+def evaluate_stalemate(board):
+    """
+    Evaluate stalemate position with a penalty.
+    Returns a negative score to be added to total evaluation.
+    
+    Parameters:
+    - board: Current board state
+    
+    Returns:
+    - Penalty score for stalemate (-100)
+    """
+    if is_stalemate(board):
+        if board.is_white_to_move:
+            return 10000
         else:
-            black_material += value
-            
-    return white_material - black_material
+            return -10000
+    return 0
