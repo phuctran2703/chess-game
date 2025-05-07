@@ -136,7 +136,7 @@ class AlphaBetaAgent:
         # Leaf node (terminal position or max depth reached)
         if depth == 0:
             self.nodes_evaluated += 1
-            evaluate_score = color_factor * (evaluate_board(board) - self.original_color*board.fifty_move_counter*10)
+            evaluate_score = color_factor * (evaluate_board(board) - self.original_color*board.fifty_move_counter*5)
             return evaluate_score
 
         move_generator = MoveGenerator(board)
